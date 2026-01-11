@@ -1,0 +1,446 @@
+"""
+Epistemic Stance Labeling for ChangeMyView Data
+================================================
+
+This module contains the labeling prompt and API code for labeling
+ChangeMyView posts and responses with epistemic stance using Claude.
+
+Adapted for dialogic/argumentative text where people are:
+- Stating and defending positions
+- Engaging with others' arguments
+- Attempting to persuade or be persuaded
+
+Based on Kuhn et al. (2000) framework:
+- Absolutist: Knowledge is certain, claims are facts
+- Multiplist: Knowledge is subjective, all opinions equally valid  
+- Evaluativist: Knowledge is uncertain but can be evaluated via evidence
+"""
+
+import json
+import csv
+import time
+from anthropic import Anthropic
+
+# ============================================================================
+# LABELING PROMPT - ADAPTED FOR DIALOGIC TEXT
+# ============================================================================
+
+SYSTEM_PROMPT = """You are an expert in epistemic cognition research, specifically trained to identify epistemic stances in argumentative and dialogic text based on the framework developed by Kuhn, Cheney, and Weinstock (2000).
+
+## Epistemic Stance Framework
+
+Epistemic stance refers to a person's orientation toward knowledge and knowing—how they view the nature of knowledge, the certainty of claims, and how they engage with competing perspectives.
+
+### The Three Epistemic Stances
+
+**ABSOLUTIST**
+Core belief: Knowledge is CERTAIN. There is ONE RIGHT ANSWER that can be known definitively.
+
+How they argue:
+- Present their position as the objective truth, not as a perspective
+- Dismiss opposing views as simply wrong, misinformed, or ignorant
+- Use evidence as PROOF of their position, not as support for a judgment
+- Show little genuine engagement with counterarguments
+- May acknowledge others disagree, but frame disagreement as error
+
+Linguistic markers:
+- Certainty language: "It is a fact that...", "The truth is...", "Obviously...", "Clearly..."
+- Dismissive phrases: "Anyone who thinks X is wrong", "There's no legitimate argument for..."
+- Definitive claims: "This proves...", "This is undeniable...", "Without question..."
+- Binary framing: Right/wrong, true/false, correct/incorrect
+- Appeals to authority as final word: "Science has proven...", "Experts agree..." (without nuance)
+
+Example in CMV context:
+"CMV: Pineapple on pizza is objectively wrong. It's a fact that sweet and savory don't belong together. Anyone who enjoys it simply has bad taste. There's no real argument for it - it's just wrong."
+
+---
+
+**MULTIPLIST**
+Core belief: Knowledge is SUBJECTIVE. All opinions are EQUALLY VALID because everyone is entitled to their view.
+
+How they argue:
+- Frame claims as personal opinions without attempting justification
+- Avoid evaluating which perspective has more merit
+- Treat disagreement as natural and unresolvable
+- Resist taking firm positions or making judgments
+- May present multiple views but refuse to weigh them
+
+Linguistic markers:
+- Opinion framing: "That's just my opinion", "Everyone's entitled to their view"
+- Relativistic phrases: "It's all subjective", "Who's to say what's right?"
+- Equivalence statements: "Both sides have valid points", "Neither is better or worse"
+- Avoidance of judgment: "I'm not saying one is right", "It depends on the person"
+- Deflection: "That's for each person to decide", "There's no right answer"
+
+Example in CMV context:
+"I mean, some people like pineapple on pizza and some don't. It's really just a matter of personal taste. Who am I to say what someone else should enjoy? Everyone's entitled to their own preferences. There's no objectively correct answer here."
+
+---
+
+**EVALUATIVIST**
+Core belief: Knowledge is UNCERTAIN but some claims have MORE MERIT than others based on evidence and reasoning.
+
+How they argue:
+- Acknowledge their position is a judgment, not absolute truth
+- Engage substantively with counterarguments
+- Use evidence as SUPPORT for their position, while acknowledging limitations
+- Show awareness that they could be wrong or that the issue is complex
+- Weigh competing perspectives and explain why one is more compelling
+- May change their mind when presented with good arguments
+
+Linguistic markers:
+- Qualified claims: "The evidence suggests...", "On balance...", "It seems likely that..."
+- Engagement with alternatives: "While I understand the argument that X, I find Y more compelling because..."
+- Acknowledgment of uncertainty: "I could be wrong, but...", "This is my current view..."
+- Comparative evaluation: "This argument is stronger because...", "The evidence for X outweighs..."
+- Metacognitive awareness: "I've reconsidered...", "You've made me think about..."
+- Conditional reasoning: "If we accept X, then...", "Given Y, it follows that..."
+
+Example in CMV context:
+"I've always disliked pineapple on pizza, but I recognize that's partly cultural conditioning. The argument that sweet-savory combinations are inherently bad doesn't hold up - we enjoy honey-glazed ham and cranberry sauce with turkey. I still prefer pizza without it, but I can see the culinary logic behind it. The stronger argument against it might be textural - the moisture can make the crust soggy."
+
+---
+
+## Key Distinctions for CMV Data
+
+**Absolutist vs. Evaluativist**: Both take positions, but:
+- Absolutist: "I'm right, you're wrong, end of discussion"
+- Evaluativist: "Here's why I think this position is better supported, though I'm open to other evidence"
+
+**Multiplist vs. Evaluativist**: Both acknowledge multiple perspectives, but:
+- Multiplist: "All views are equally valid, there's no point comparing"
+- Evaluativist: "Multiple views exist, and here's how I evaluate which is more justified"
+
+**Delta-awarded responses**: Responses that earned a delta (Δ) on CMV successfully changed someone's mind. These are often (but not always) evaluativist - they engaged with the OP's reasoning in a way that was persuasive.
+
+**Original posts (OPs)**: These state the view to be changed. They may be:
+- Absolutist: Presenting their view as obvious truth
+- Evaluativist: Explaining their reasoning and inviting challenge
+- Rarely multiplist (since they're asking for their view to be changed)
+
+## Labeling Instructions
+
+For each sample, provide:
+1. **stance**: One of [absolutist, multiplist, evaluativist]
+2. **confidence**: One of [high, medium, low]
+3. **justification**: Brief explanation (2-3 sentences) citing specific textual evidence
+4. **key_markers**: List of specific phrases that indicate this stance
+
+Consider:
+- How does the writer treat their claims? (certain facts vs. personal opinions vs. evaluated judgments)
+- How do they handle alternative perspectives? (dismiss vs. accept all vs. evaluate)
+- Do they engage with counterarguments substantively?
+- Do they show awareness of uncertainty or complexity?
+- What would it take to change their mind?
+"""
+
+LABELING_TEMPLATE = """Please analyze the following ChangeMyView post/response and classify its epistemic stance.
+
+## Context
+- Sample Type: {sample_type}
+- Delta Awarded: {is_delta} {delta_note}
+- Word Count: {word_count}
+
+## Text to Analyze
+---
+{text}
+---
+
+## Your Analysis
+
+Provide your analysis in the following JSON format:
+```json
+{{
+    "stance": "[absolutist|multiplist|evaluativist]",
+    "confidence": "[high|medium|low]",
+    "justification": "[Your 2-3 sentence explanation citing specific evidence from the text]",
+    "key_markers": ["list", "of", "specific", "phrases", "from", "the", "text"],
+    "reasoning_quality": "[high|medium|low]",
+    "engagement_with_alternatives": "[none|dismissive|superficial|substantive]"
+}}
+```
+
+Additional fields explanation:
+- **reasoning_quality**: How well-developed is the reasoning? (high = clear logical structure, evidence cited; low = assertions without support)
+- **engagement_with_alternatives**: How does the writer handle other viewpoints?
+  - none: No mention of alternatives
+  - dismissive: Mentions but dismisses without engagement
+  - superficial: Acknowledges but doesn't really engage
+  - substantive: Genuinely engages with and evaluates alternatives
+
+Remember:
+- Base classification on HOW they argue, not WHAT they argue
+- A person can have a strong opinion and still be evaluativist (if they reason well and acknowledge uncertainty)
+- A person can seem open-minded but still be multiplist (if they refuse to evaluate competing claims)
+- Delta-awarded responses suggest successful persuasion but aren't automatically evaluativist"""
+
+
+# ============================================================================
+# LABELING FUNCTIONS
+# ============================================================================
+
+def create_labeling_message(sample_data):
+    """Create the labeling prompt for a single sample."""
+    
+    sample_type_descriptions = {
+        'original_post': 'Original post stating a view to be changed (OP)',
+        'delta_response': 'Response that earned a delta (changed OP\'s mind)',
+        'response': 'Response attempting to change OP\'s view',
+        'argument_with_conclusion': 'Argument extracted from CMV with its conclusion',
+    }
+    
+    is_delta = sample_data.get('is_delta_awarded', False)
+    delta_note = "(This response successfully changed someone's mind)" if is_delta else ""
+    
+    return LABELING_TEMPLATE.format(
+        sample_type=sample_type_descriptions.get(
+            sample_data.get('sample_type', 'unknown'), 
+            sample_data.get('sample_type', 'unknown')
+        ),
+        is_delta="Yes" if is_delta else "No",
+        delta_note=delta_note,
+        word_count=sample_data.get('word_count', len(sample_data['text'].split())),
+        text=sample_data['text']
+    )
+
+
+def label_single_sample(client, sample_data, model="claude-sonnet-4-20250514"):
+    """
+    Label a single sample using Claude API.
+    
+    Args:
+        client: Anthropic client instance
+        sample_data: Dictionary with sample information
+        model: Claude model to use
+    
+    Returns:
+        Dictionary with sample_id and labeling results
+    """
+    message_content = create_labeling_message(sample_data)
+    
+    try:
+        response = client.messages.create(
+            model=model,
+            max_tokens=800,
+            system=SYSTEM_PROMPT,
+            messages=[
+                {"role": "user", "content": message_content}
+            ]
+        )
+        
+        # Extract JSON from response
+        response_text = response.content[0].text
+        
+        # Try to parse JSON from response
+        json_start = response_text.find('{')
+        json_end = response_text.rfind('}') + 1
+        if json_start != -1 and json_end > json_start:
+            json_str = response_text[json_start:json_end]
+            result = json.loads(json_str)
+        else:
+            result = {
+                "stance": "error",
+                "confidence": "low",
+                "justification": f"Could not parse response: {response_text[:200]}",
+                "key_markers": [],
+                "reasoning_quality": "unknown",
+                "engagement_with_alternatives": "unknown"
+            }
+        
+        return {
+            "sample_id": sample_data.get('sample_id', 'unknown'),
+            **result
+        }
+        
+    except Exception as e:
+        return {
+            "sample_id": sample_data.get('sample_id', 'unknown'),
+            "stance": "error",
+            "confidence": "low",
+            "justification": f"API error: {str(e)}",
+            "key_markers": [],
+            "reasoning_quality": "unknown",
+            "engagement_with_alternatives": "unknown"
+        }
+
+
+def label_batch(client, samples, model="claude-sonnet-4-20250514", 
+                delay_between_calls=0.5, progress_callback=None):
+    """
+    Label a batch of samples.
+    
+    Args:
+        client: Anthropic client instance
+        samples: List of sample dictionaries
+        model: Claude model to use
+        delay_between_calls: Seconds to wait between API calls
+        progress_callback: Optional function to call with progress updates
+    
+    Returns:
+        List of labeling results
+    """
+    results = []
+    
+    for i, sample in enumerate(samples):
+        result = label_single_sample(client, sample, model)
+        results.append(result)
+        
+        if progress_callback:
+            progress_callback(i + 1, len(samples), result)
+        
+        # Rate limiting
+        if i < len(samples) - 1:
+            time.sleep(delay_between_calls)
+    
+    return results
+
+
+def save_results(results, samples, output_path):
+    """
+    Save labeling results merged with original sample data.
+    """
+    # Create lookup for results
+    results_lookup = {r['sample_id']: r for r in results}
+    
+    # Merge with original data
+    merged = []
+    for sample in samples:
+        sample_id = sample.get('sample_id', 'unknown')
+        result = results_lookup.get(sample_id, {})
+        
+        merged.append({
+            **sample,
+            'epistemic_stance': result.get('stance', ''),
+            'stance_confidence': result.get('confidence', ''),
+            'stance_justification': result.get('justification', ''),
+            'stance_markers': json.dumps(result.get('key_markers', [])),
+            'reasoning_quality': result.get('reasoning_quality', ''),
+            'engagement_with_alternatives': result.get('engagement_with_alternatives', ''),
+        })
+    
+    # Save to CSV
+    df_columns = ['sample_id', 'conversation_id', 'sample_type', 'is_delta_awarded',
+                  'word_count', 'epistemic_stance', 'stance_confidence',
+                  'reasoning_quality', 'engagement_with_alternatives',
+                  'stance_justification', 'stance_markers', 'text']
+    
+    with open(output_path, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=df_columns, extrasaction='ignore')
+        writer.writeheader()
+        writer.writerows(merged)
+    
+    print(f"Saved {len(merged)} labeled samples to {output_path}")
+    
+    # Print distribution
+    print("\n" + "="*60)
+    print("LABELING RESULTS SUMMARY")
+    print("="*60)
+    
+    stance_counts = {}
+    for m in merged:
+        stance = m.get('epistemic_stance', 'unknown')
+        stance_counts[stance] = stance_counts.get(stance, 0) + 1
+    
+    print("\nStance distribution:")
+    for stance, count in sorted(stance_counts.items()):
+        print(f"  {stance}: {count} ({100*count/len(merged):.1f}%)")
+    
+    # Cross-tabulate with sample type
+    print("\nStance by sample type:")
+    type_stance = {}
+    for m in merged:
+        stype = m.get('sample_type', 'unknown')
+        stance = m.get('epistemic_stance', 'unknown')
+        if stype not in type_stance:
+            type_stance[stype] = {}
+        type_stance[stype][stance] = type_stance[stype].get(stance, 0) + 1
+    
+    for stype, stances in type_stance.items():
+        print(f"\n  {stype}:")
+        for stance, count in sorted(stances.items()):
+            print(f"    {stance}: {count}")
+    
+    # Delta vs non-delta comparison
+    delta_stances = [m['epistemic_stance'] for m in merged if m.get('is_delta_awarded')]
+    non_delta_stances = [m['epistemic_stance'] for m in merged 
+                         if not m.get('is_delta_awarded') and m.get('sample_type') != 'original_post']
+    
+    if delta_stances and non_delta_stances:
+        print("\n\nDelta-awarded vs regular responses:")
+        print("  Delta-awarded:")
+        for stance in ['absolutist', 'multiplist', 'evaluativist']:
+            count = delta_stances.count(stance)
+            print(f"    {stance}: {count} ({100*count/len(delta_stances):.1f}%)")
+        print("  Regular responses:")
+        for stance in ['absolutist', 'multiplist', 'evaluativist']:
+            count = non_delta_stances.count(stance)
+            print(f"    {stance}: {count} ({100*count/len(non_delta_stances):.1f}%)")
+
+
+# ============================================================================
+# MAIN EXECUTION
+# ============================================================================
+
+def main():
+    """Main labeling workflow."""
+    import pandas as pd
+    
+    # Initialize client
+    client = Anthropic()
+    
+    # Load sample
+    print("Loading labeling sample...")
+    df = pd.read_csv("cmv_labeling_sample.csv")
+    samples = df.to_dict('records')
+    
+    print(f"Loaded {len(samples)} samples for labeling")
+    
+    # Show distribution
+    print("\nSample distribution:")
+    print(df['sample_type'].value_counts())
+    
+    # Start with pilot batch
+    pilot_size = 50
+    pilot_samples = samples[:pilot_size]
+    
+    print(f"\nLabeling pilot batch of {pilot_size} samples...")
+    
+    def progress(current, total, result):
+        stance = result.get('stance', 'unknown')
+        conf = result.get('confidence', 'unknown')
+        print(f"  [{current}/{total}] {result['sample_id'][:20]}...: {stance} ({conf})")
+    
+    results = label_batch(
+        client, 
+        pilot_samples, 
+        model="claude-sonnet-4-20250514",
+        delay_between_calls=0.5,
+        progress_callback=progress
+    )
+    
+    # Save pilot results
+    save_results(results, pilot_samples, "cmv_pilot_labeled.csv")
+    
+    print("\n" + "="*60)
+    print("PILOT COMPLETE")
+    print("="*60)
+    print("""
+    Review cmv_pilot_labeled.csv to validate the labeling approach.
+    
+    Check:
+    1. Are the stance classifications reasonable?
+    2. Do delta-awarded responses tend to be evaluativist?
+    3. Do the justifications cite appropriate evidence?
+    4. Is the multiplist category being captured?
+    
+    Key questions:
+    - Are OPs more likely to be absolutist (rigid) or evaluativist (open)?
+    - Are successful (delta) responses more evaluativist than unsuccessful ones?
+    - What linguistic patterns distinguish the stances?
+    
+    Once validated, scale to full batch by modifying pilot_size.
+    """)
+
+
+if __name__ == "__main__":
+    main()

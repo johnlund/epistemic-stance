@@ -42,13 +42,13 @@ def load_relationship_advice():
     """
     from datasets import load_dataset
     
-    print("Loading relationship_advice split from HuggingFaceGECLM/REDDIT_comments...")
+    print("Loading dataset from HuggingFaceGECLM/REDDIT_comments...")
     print("(This may take a few minutes on first download)")
     
-    # Load only the relationship_advice split
+    # Load the default config (the dataset doesn't have separate configs per subreddit)
     ds = load_dataset(
         "HuggingFaceGECLM/REDDIT_comments",
-        "relationship_advice"
+        "default"
     )
     
     print(f"\nLoaded dataset with splits: {list(ds.keys())}")
@@ -59,7 +59,37 @@ def load_relationship_advice():
     print(f"Number of comments: {len(ds[main_split])}")
     print(f"Columns: {ds[main_split].column_names}")
     
-    return ds[main_split]
+    # Filter for relationship_advice subreddit
+    # Check what field contains the subreddit name
+    sample_entry = ds[main_split][0]
+    print(f"\nSample entry keys: {list(sample_entry.keys())}")
+    
+    # Try to find the subreddit field (common names: 'subreddit', 'subreddit_name', 'subredditName')
+    subreddit_field = None
+    for field in ['subreddit', 'subreddit_name', 'subredditName', 'subredditNamePrefixed']:
+        if field in sample_entry:
+            subreddit_field = field
+            print(f"Found subreddit field: {field}")
+            print(f"Sample value: {sample_entry[field]}")
+            break
+    
+    if not subreddit_field:
+        print("\n⚠️  Warning: Could not find subreddit field. Available fields:")
+        for key, value in sample_entry.items():
+            print(f"  {key}: {type(value).__name__}")
+        print("\nReturning full dataset - you may need to filter manually.")
+        return ds[main_split]
+    
+    # Filter for relationship_advice
+    print(f"\nFiltering for 'relationship_advice' subreddit...")
+    filtered_ds = ds[main_split].filter(
+        lambda x: 'relationship_advice' in str(x.get(subreddit_field, '')).lower()
+    )
+    
+    print(f"Filtered to {len(filtered_ds)} relationship_advice comments")
+    print(f"(from {len(ds[main_split])} total comments)")
+    
+    return filtered_ds
 
 def explore_structure(ds, n_samples=5):
     """Examine the structure of the dataset."""

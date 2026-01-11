@@ -33,57 +33,33 @@ import re
 # STEP 1: Load the relationship_advice split
 # ============================================================================
 
-# def load_relationship_advice():
-#     """
-#     Load the relationship_advice split from HuggingFaceGECLM/REDDIT_comments.
-    
-#     This dataset contains Reddit comments from 50 high-quality subreddits,
-#     including relationship_advice.
-#     """
-#     from datasets import load_dataset
-    
-#     print("Loading relationship_advice split from HuggingFaceGECLM/REDDIT_comments...")
-#     print("(This may take a few minutes on first download)")
-    
-#     # Load only the relationship_advice split
-#     ds = load_dataset(
-#         "HuggingFaceGECLM/REDDIT_comments",
-#         "relationship_advice"
-#     )
-    
-#     print(f"\nLoaded dataset with splits: {list(ds.keys())}")
-    
-#     # Get the main split (usually 'train')
-#     main_split = list(ds.keys())[0]
-#     print(f"Using split: {main_split}")
-#     print(f"Number of comments: {len(ds[main_split])}")
-#     print(f"Columns: {ds[main_split].column_names}")
-    
-#     return ds[main_split]
-
 def load_relationship_advice():
     """
-    Load relationship_advice posts from the reddit (webis/tldr-17) dataset.
-    This dataset is ~2GB and has a subreddit field we can filter on.
+    Load the relationship_advice split from HuggingFaceGECLM/REDDIT_comments.
+    
+    This dataset contains Reddit comments from 50 high-quality subreddits,
+    including relationship_advice.
     """
     from datasets import load_dataset
     
-    print("Loading reddit (webis/tldr-17) dataset...")
-    print("(~2GB download on first run)")
+    print("Loading relationship_advice split from HuggingFaceGECLM/REDDIT_comments...")
+    print("(This may take a few minutes on first download)")
     
-    ds = load_dataset("webis/tldr-17")
+    # Load only the relationship_advice split
+    ds = load_dataset(
+        "HuggingFaceGECLM/REDDIT_comments",
+        "relationship_advice"
+    )
     
-    print(f"Total posts: {len(ds)}")
-    print(f"Columns: {ds.column_names}")
+    print(f"\nLoaded dataset with splits: {list(ds.keys())}")
     
-    # Filter to relationship_advice
-    print("Filtering to relationship_advice subreddit...")
-    ds_filtered = ds.filter(lambda x: x["subreddit"] == "relationship_advice")
+    # Get the main split (usually 'train')
+    main_split = list(ds.keys())[0]
+    print(f"Using split: {main_split}")
+    print(f"Number of comments: {len(ds[main_split])}")
+    print(f"Columns: {ds[main_split].column_names}")
     
-    print(f"relationship_advice posts: {len(ds_filtered)}")
-    
-    return ds_filtered
-
+    return ds[main_split]
 
 def explore_structure(ds, n_samples=5):
     """Examine the structure of the dataset."""

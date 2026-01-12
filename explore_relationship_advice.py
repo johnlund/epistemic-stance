@@ -236,12 +236,12 @@ def filter_for_multiplist_labeling(entry, min_words=100, max_words=2000):
     - Show multiplist indicators
     - Don't have strong absolutist/evaluativist markers
     
-    Returns: (is_suitable, reason, multiplist_score_data)
+    Returns: bool - True if suitable, False otherwise
     """
     text = get_text_field(entry)
     
     if not text:
-        return False, "no_text", None
+        return False
     
     # Clean up text
     text = text.strip()
@@ -250,18 +250,18 @@ def filter_for_multiplist_labeling(entry, min_words=100, max_words=2000):
     word_count = len(text.split())
     
     if word_count < min_words:
-        return False, f"too_short ({word_count} words)", None
+        return False
     
     if word_count > max_words:
-        return False, f"too_long ({word_count} words)", None
+        return False
     
     # Check for deleted/removed
     if '[deleted]' in text or '[removed]' in text:
-        return False, "deleted_content", None
+        return False
     
     # Check for links-only comments
     if text.count('http') > 2 and word_count < 100:
-        return False, "mostly_links", None
+        return False
     
     # # Score for multiplist indicators
     # score_data = score_multiplist_indicators(text)
@@ -269,13 +269,15 @@ def filter_for_multiplist_labeling(entry, min_words=100, max_words=2000):
     # # We want comments with some multiplist signal
     # # At least one strong match, OR multiple moderate matches
     # if score_data['n_strong'] >= 1:
-    #     return True, "strong_multiplist", score_data
+    #     return True
     # elif score_data['n_moderate'] >= 2 and score_data['n_anti'] == 0:
-    #     return True, "moderate_multiplist", score_data
+    #     return True
     # elif score_data['multiplist_score'] >= 2:
-    #     return True, "positive_score", score_data
+    #     return True
     # else:
-    #     return False, "no_multiplist_signal", score_data
+    #     return False
+    
+    # If all filters pass, the entry is suitable
     return True
 
 

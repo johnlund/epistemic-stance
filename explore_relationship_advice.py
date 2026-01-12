@@ -1,9 +1,9 @@
 """
-Relationship Advice Reddit Data Exploration and Preparation
-============================================================
+Reddit Subreddit Data Exploration and Preparation
+==================================================
 
-This script downloads and filters the relationship_advice subreddit data
-from HuggingFaceGECLM/REDDIT_comments to find multiplist reasoning examples.
+This script downloads and filters subreddit data from HuggingFaceGECLM/REDDIT_comments
+to find multiplist reasoning examples. Can work with any subreddit split in the dataset.
 
 Multiplist reasoning characteristics:
 - Treats knowledge as subjective/personal
@@ -19,7 +19,12 @@ Requirements:
     pip install datasets pandas tqdm
 
 Usage:
-    python explore_relationship_advice.py
+    python explore_relationship_advice.py [split_name]
+    
+    Examples:
+    python explore_relationship_advice.py relationship_advice
+    python explore_relationship_advice.py changemyview
+    python explore_relationship_advice.py AskHistorians
 """
 
 import pandas as pd
@@ -30,22 +35,29 @@ from tqdm import tqdm
 import re
 
 # ============================================================================
-# STEP 1: Load the relationship_advice split
+# STEP 1: Load a Reddit subreddit split
 # ============================================================================
 
-def load_relationship_advice():
+def load_reddit_split(split_name='relationship_advice'):
     """
-    Load the relationship_advice split from HuggingFaceGECLM/REDDIT_comments.
+    Load a specific subreddit split from HuggingFaceGECLM/REDDIT_comments.
     
     This dataset contains Reddit comments from 50 high-quality subreddits,
-    including relationship_advice.
+    each available as a separate split.
+    
+    Args:
+        split_name: Name of the subreddit split to load (e.g., 'relationship_advice', 
+                   'changemyview', 'AskHistorians', etc.)
+    
+    Returns:
+        Dataset split for the specified subreddit
     """
     from datasets import load_dataset
     
-    print("Loading dataset from HuggingFaceGECLM/REDDIT_comments...")
+    print(f"Loading {split_name} split from HuggingFaceGECLM/REDDIT_comments...")
     print("(This may take a few minutes on first download)")
     
-    # Load the default config (the dataset doesn't have separate configs per subreddit)
+    # Load the default config - the dataset has splits for each subreddit
     ds = load_dataset(
         "HuggingFaceGECLM/REDDIT_comments",
         "default"
@@ -53,43 +65,20 @@ def load_relationship_advice():
     
     print(f"\nLoaded dataset with splits: {list(ds.keys())}")
     
-    # Get the main split (usually 'train')
-    main_split = list(ds.keys())[0]
-    print(f"Using split: {main_split}")
-    print(f"Number of comments: {len(ds[main_split])}")
-    print(f"Columns: {ds[main_split].column_names}")
+    # Check if the requested split exists
+    if split_name not in ds:
+        available = list(ds.keys())
+        print(f"\n❌ Error: Split '{split_name}' not found.")
+        print(f"Available splits: {available}")
+        raise ValueError(f"Split '{split_name}' not found. Available: {available}")
     
-    # Filter for relationship_advice subreddit
-    # Check what field contains the subreddit name
-    sample_entry = ds[main_split][0]
-    print(f"\nSample entry keys: {list(sample_entry.keys())}")
+    # Get the requested split
+    split_ds = ds[split_name]
+    print(f"\nUsing split: {split_name}")
+    print(f"Number of comments: {len(split_ds)}")
+    print(f"Columns: {split_ds.column_names}")
     
-    # Try to find the subreddit field (common names: 'subreddit', 'subreddit_name', 'subredditName')
-    subreddit_field = None
-    for field in ['subreddit', 'subreddit_name', 'subredditName', 'subredditNamePrefixed']:
-        if field in sample_entry:
-            subreddit_field = field
-            print(f"Found subreddit field: {field}")
-            print(f"Sample value: {sample_entry[field]}")
-            break
-    
-    if not subreddit_field:
-        print("\n⚠️  Warning: Could not find subreddit field. Available fields:")
-        for key, value in sample_entry.items():
-            print(f"  {key}: {type(value).__name__}")
-        print("\nReturning full dataset - you may need to filter manually.")
-        return ds[main_split]
-    
-    # Filter for relationship_advice
-    print(f"\nFiltering for 'relationship_advice' subreddit...")
-    filtered_ds = ds[main_split].filter(
-        lambda x: 'relationship_advice' in str(x.get(subreddit_field, '')).lower()
-    )
-    
-    print(f"Filtered to {len(filtered_ds)} relationship_advice comments")
-    print(f"(from {len(ds[main_split])} total comments)")
-    
-    return filtered_ds
+    return split_ds
 
 def explore_structure(ds, n_samples=5):
     """Examine the structure of the dataset."""
@@ -289,14 +278,23 @@ def filter_for_multiplist_labeling(entry, min_words=50, max_words=None):
         return False, "no_multiplist_signal", score_data
 
 
-def extract_multiplist_candidates(ds, max_samples=10000, progress=True):
+def extract_multiplist_candidates(ds, dataset_name='relationship_advice', max_samples=10000, progress=True):
     """
     Extract comments that are candidates for multiplist labeling.
+    
+    Args:
+        ds: Dataset to extract from
+        dataset_name: Name of the dataset/subreddit (used for sample IDs and metadata)
+        max_samples: Maximum number of candidates to extract
+        progress: Whether to show progress bar
     
     Returns a list of dictionaries with sample data and multiplist scores.
     """
     candidates = []
     filter_stats = Counter()
+    
+    # Create a short prefix for sample IDs (first 2-3 letters of dataset name)
+    prefix = dataset_name[:3].lower() if len(dataset_name) >= 3 else dataset_name.lower()
     
     # Sample or iterate through dataset
     n_to_check = min(max_samples * 10, len(ds))  # Check more than we need
@@ -314,8 +312,8 @@ def extract_multiplist_candidates(ds, max_samples=10000, progress=True):
             text = get_text_field(entry)
             
             candidates.append({
-                'sample_id': f"ra_{idx}",
-                'dataset': 'relationship_advice',
+                'sample_id': f"{prefix}_{idx}",
+                'dataset': dataset_name,
                 'sample_type': 'reddit_comment',
                 'word_count': len(text.split()),
                 'text': text,
@@ -401,8 +399,17 @@ def create_labeling_sample(candidates, n_samples=1000):
     return sample
 
 
-def save_labeling_sample(sample, output_path="relationship_advice_labeling_sample.csv"):
-    """Save the sample to CSV for labeling."""
+def save_labeling_sample(sample, dataset_name='relationship_advice', output_path=None):
+    """
+    Save the sample to CSV for labeling.
+    
+    Args:
+        sample: List of sample dictionaries
+        dataset_name: Name of the dataset (used for default filename if output_path not provided)
+        output_path: Path to save CSV file (defaults to {dataset_name}_labeling_sample.csv)
+    """
+    if output_path is None:
+        output_path = f"{dataset_name}_labeling_sample.csv"
     df = pd.DataFrame(sample)
     
     # Reorder columns
@@ -490,18 +497,23 @@ def analyze_sample_characteristics(sample):
 # MAIN EXECUTION
 # ============================================================================
 
-def main():
-    """Main workflow for relationship_advice multiplist extraction."""
+def main(split_name='relationship_advice'):
+    """
+    Main workflow for multiplist extraction from a Reddit subreddit split.
+    
+    Args:
+        split_name: Name of the subreddit split to process (default: 'relationship_advice')
+    """
     
     # Set random seed
     random.seed(42)
     
     print("="*60)
-    print("RELATIONSHIP ADVICE - MULTIPLIST CANDIDATE EXTRACTION")
+    print(f"{split_name.upper()} - MULTIPLIST CANDIDATE EXTRACTION")
     print("="*60)
     
     # Load dataset
-    ds = load_relationship_advice()
+    ds = load_reddit_split(split_name)
     
     # Explore structure
     # explore_structure(ds, n_samples=3)
@@ -509,6 +521,7 @@ def main():
     # # Extract candidates
     # candidates, filter_stats = extract_multiplist_candidates(
     #     ds, 
+    #     dataset_name=split_name,
     #     max_samples=3000  # Get more than we need for selection
     # )
     
@@ -522,7 +535,7 @@ def main():
     # sample = create_labeling_sample(candidates, n_samples=1000)
     
     # # Save sample
-    # df = save_labeling_sample(sample, "relationship_advice_labeling_sample.csv")
+    # df = save_labeling_sample(sample, dataset_name=split_name)
     
     # # Preview examples
     # preview_examples(sample, n_examples=5)
@@ -533,8 +546,8 @@ def main():
     print("\n" + "="*60)
     print("NEXT STEPS")
     print("="*60)
-    print("""
-    1. Review relationship_advice_labeling_sample.csv
+    print(f"""
+    1. Review {split_name}_labeling_sample.csv
     2. Run pilot labeling on 50-100 examples using label_multiplist_stance.py
     3. Validate that these are actually multiplist (not soft evaluativist)
     4. Combine with:
@@ -550,4 +563,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    
+    # Get split name from command line argument if provided
+    split_name = sys.argv[1] if len(sys.argv) > 1 else 'relationship_advice'
+    
+    main(split_name)

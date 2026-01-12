@@ -128,35 +128,39 @@ GENERAL_REASONING_PATTERNS = [
 ]
 
 ABSOLUTIST_PATTERNS = [
-    r'\bobviously\b', r'\bclearly\b', r'\bundeniably\b',
-    r'\bthe fact is\b', r'\bthe truth is\b', r'\bno doubt\b',
-    r'\bwithout question\b', r'\babsolutely\b', r'\bdefinitely\b',
-    r'\beveryone knows\b', r'\bit\'s clear that\b',
-
-    # Absolutist markers (certainty)
+    r'\bobviously\b',
+    r'\bclearly\b',
+    r'\bclearly (you should|the answer)\b',
+    r'\bundeniably\b',
+    r'\bthe fact is\b',
+    r'\bthe truth is\b',
+    r'\bno doubt\b',
+    r'\bwithout question\b',
+    r'\babsolutely\b',
+    r'\bdefinitely\b',
+    r'\beveryone knows\b',
+    r'\bit\'s clear that\b',
     r'\byou (should|must|need to) (definitely|absolutely)\b',
     r'\bthere\'s no (question|doubt)\b',
-    r'\bobviously\b',
-    r'\bclearly (you should|the answer)\b',
     r'\b(dump|leave|divorce) (him|her|them)\b',  # Strong directive advice
     r'\bred flag\b',  # Definitive judgment
     r'\bdeal ?breaker\b',
 ]
 
 EVALUATIVIST_PATTERNS = [
-    r'\bthe evidence suggests\b', r'\bon balance\b',
-    r'\bwhile.+however\b', r'\balthough.+still\b',
-    r'\bi could be wrong\b', r'\bmore likely\b',
-    r'\bstronger argument\b', r'\bbetter supported\b',
-    r'\bhaving considered\b', r'\bweighing\b',
-    r'\bI\'ve changed my mind\b', r'\byou\'ve convinced me\b',
-
-    # Evaluativist markers (weighing evidence)
-    r'\bthe (better|best|stronger) (option|choice|argument)\b',
-    r'\bon balance\b',
-    r'\bweighing\b',
-    r'\bmore (likely|reasonable|justified)\b',
     r'\bthe evidence (suggests|shows)\b',
+    r'\bon balance\b',
+    r'\bwhile.+however\b',
+    r'\balthough.+still\b',
+    r'\bi could be wrong\b',
+    r'\bmore (likely|reasonable|justified)\b',
+    r'\bthe (better|best|stronger) (option|choice|argument)\b',
+    r'\bstronger argument\b',
+    r'\bbetter supported\b',
+    r'\bhaving considered\b',
+    r'\bweighing\b',
+    r'\bI\'ve changed my mind\b',
+    r'\byou\'ve convinced me\b',
 ]
 
 # Strong multiplist indicators - phrases that suggest relativistic thinking
@@ -191,6 +195,7 @@ MULTIPLIST_STRONG_PATTERNS = [
 # Moderate multiplist indicators - softer versions
 MULTIPLIST_MODERATE_PATTERNS = [
     r'\bit (really )?depends\b',
+    r'\bdepends on the person\b',
     r'\bthat\'s (just )?your (call|decision|choice)\b',
     r'\byou (have to|need to|gotta) decide\b',
     r'\bup to you\b',
@@ -201,19 +206,12 @@ MULTIPLIST_MODERATE_PATTERNS = [
     r'\bjust my (opinion|two cents|perspective)\b',
     r'\beveryone is different\b',
     r'\bdifferent things work for different\b',
-    r'\bjust my opinion\b',
     r'\beveryone.+entitled\b',
     r'\bwho\'s to say\b',
     r'\bit\'s subjective\b',
-    r'\bdepends on the person\b',
     r'\bboth.+valid\b',
     r'\bneither.+wrong\b',
     r'\bnot for me to judge\b',
-
-    r'\bjust my opinion\b', r'\beveryone.+entitled\b', 
-    r'\bwho\'s to say\b', r'\bit\'s subjective\b',
-    r'\bdepends on the person\b', r'\bboth.+valid\b',
-    r'\bneither.+wrong\b', r'\bnot for me to judge\b',
 ]
 
 def has_multiplist_indicators(text):
@@ -241,10 +239,23 @@ def has_reasoning_indicators(text):
     
     We want posts where people are actually reasoning about claims,
     not just stating preferences or making jokes.
+    
+    Checks all pattern lists: general reasoning, absolutist, evaluativist,
+    and multiplist patterns.
     """
     
     text_lower = text.lower()
-    matches = sum(1 for pattern in GENERAL_REASONING_PATTERNS if re.search(pattern, text_lower))
+    
+    # Combine all pattern lists
+    all_patterns = (
+        GENERAL_REASONING_PATTERNS +
+        ABSOLUTIST_PATTERNS +
+        EVALUATIVIST_PATTERNS +
+        MULTIPLIST_STRONG_PATTERNS +
+        MULTIPLIST_MODERATE_PATTERNS
+    )
+    
+    matches = sum(1 for pattern in all_patterns if re.search(pattern, text_lower))
     
     return matches >= 2  # At least 2 reasoning indicators
 

@@ -349,21 +349,44 @@ def extract_multiplist_candidates(ds, dataset_name='relationship_advice', max_sa
 
 def create_labeling_sample(candidates, n_samples=1000):
     """
-    Create a stratified sample prioritizing high multiplist scores.
+    Create a stratified sample prioritizing medium-length comments.
     
     We want diversity in:
-    - Multiplist signal strength
-    - Comment length
+    - Comment length (prioritize 200-500 words - good for substantive reasoning)
     - Topic variety (implicit in random sampling)
     """
     if not candidates:
         print("No candidates to sample from!")
         return []
     
-    # Sort by multiplist score (descending)
-    sorted_candidates = sorted(candidates, key=lambda x: x['multiplist_score'], reverse=True)
+    def quality_score(candidate):
+        """
+        Score candidates based on word count, prioritizing medium-length comments.
+        Ideal range: 200-500 words (substantive but not too long).
+        Returns a score where higher is better.
+        """
+        wc = candidate['word_count']
+        # Ideal word count range
+        ideal_min, ideal_max = 200, 500
+        
+        if ideal_min <= wc <= ideal_max:
+            # In ideal range - score based on how close to center
+            center = (ideal_min + ideal_max) / 2
+            distance_from_center = abs(wc - center)
+            max_distance = (ideal_max - ideal_min) / 2
+            # Score: 100 at center, decreasing to 50 at edges
+            return 100 - (distance_from_center / max_distance) * 50
+        elif wc < ideal_min:
+            # Below ideal - score decreases with distance
+            return max(0, 50 - (ideal_min - wc) * 0.5)
+        else:
+            # Above ideal - score decreases with distance (but less penalty)
+            return max(0, 50 - (wc - ideal_max) * 0.1)
     
-    # Take top scorers plus some random selection
+    # Sort by quality score (descending)
+    sorted_candidates = sorted(candidates, key=quality_score, reverse=True)
+    
+    # Take top candidates plus some random selection for diversity
     n_top = min(n_samples // 2, len(sorted_candidates))
     n_random = min(n_samples - n_top, len(sorted_candidates) - n_top)
     
@@ -378,24 +401,24 @@ def create_labeling_sample(candidates, n_samples=1000):
     print("LABELING SAMPLE CREATED")
     print("="*60)
     print(f"\nTotal samples: {len(sample)}")
-    print(f"  Top scorers: {n_top}")
+    print(f"  Top quality: {n_top}")
     print(f"  Random selection: {n_random}")
-    
-    # Score distribution
-    scores = [s['multiplist_score'] for s in sample]
-    print(f"\nMultiplist score distribution:")
-    print(f"  Mean: {sum(scores)/len(scores):.1f}")
-    print(f"  Range: {min(scores)} - {max(scores)}")
     
     # Word count distribution
     word_counts = [s['word_count'] for s in sample]
     print(f"\nWord count distribution:")
     print(f"  Mean: {sum(word_counts)/len(word_counts):.0f}")
+    print(f"  Median: {sorted(word_counts)[len(word_counts)//2]:.0f}")
     print(f"  Range: {min(word_counts)} - {max(word_counts)}")
     
-    # Strong vs moderate
-    n_strong = sum(1 for s in sample if s['n_strong_matches'] > 0)
-    print(f"\nSamples with strong multiplist patterns: {n_strong} ({100*n_strong/len(sample):.1f}%)")
+    # Count by length category
+    ideal_range = sum(1 for wc in word_counts if 200 <= wc <= 500)
+    short = sum(1 for wc in word_counts if wc < 200)
+    long = sum(1 for wc in word_counts if wc > 500)
+    print(f"\nLength categories:")
+    print(f"  Short (<200 words): {short} ({100*short/len(sample):.1f}%)")
+    print(f"  Ideal (200-500 words): {ideal_range} ({100*ideal_range/len(sample):.1f}%)")
+    print(f"  Long (>500 words): {long} ({100*long/len(sample):.1f}%)")
     
     return sample
 
@@ -413,10 +436,8 @@ def save_labeling_sample(sample, dataset_name='relationship_advice', output_path
         output_path = f"{dataset_name}_labeling_sample.csv"
     df = pd.DataFrame(sample)
     
-    # Reorder columns
-    priority_cols = ['sample_id', 'dataset', 'sample_type', 'word_count', 
-                     'multiplist_score', 'n_strong_matches', 'n_moderate_matches',
-                     'filter_reason', 'text']
+    # Reorder columns (only include columns that exist)
+    priority_cols = ['sample_id', 'dataset', 'sample_type', 'word_count', 'text']
     other_cols = [c for c in df.columns if c not in priority_cols]
     column_order = [c for c in priority_cols if c in df.columns] + other_cols
     df = df[column_order]

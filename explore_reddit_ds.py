@@ -340,7 +340,7 @@ def filter_for_labeling(entry, min_words=100, max_words=2000, require_multiplist
     return True
 
 
-def extract_multiplist_candidates(ds, dataset_name='relationship_advice', max_samples=10000, 
+def extract_candidates(ds, dataset_name='relationship_advice', max_samples=10000, 
                                   progress=True, require_multiplist_patterns=False):
     """
     Extract comments that are candidates for multiplist labeling.
@@ -604,10 +604,10 @@ def main(split_name='relationship_advice', require_multiplist_patterns=False):
     # explore_structure(ds, n_samples=3)
     
     # Extract candidates
-    candidates, filter_stats = extract_multiplist_candidates(
+    candidates = extract_candidates(
         ds, 
         dataset_name=split_name,
-        max_samples=3000,  # Get more than we need for selection
+        max_samples=10000,  # Get more than we need for selection
         require_multiplist_patterns=require_multiplist_patterns
     )
     

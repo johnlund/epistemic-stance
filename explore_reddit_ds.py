@@ -104,49 +104,76 @@ def explore_structure(ds, n_samples=5):
 # STEP 2: Define multiplist linguistic patterns
 # ============================================================================
 
-# # Strong multiplist indicators - phrases that suggest relativistic thinking
-# MULTIPLIST_STRONG_PATTERNS = [
-#     # Deflecting judgment
-#     r'\bonly you can (decide|know|answer|figure)',
-#     r'\bthat\'s (really )?for you to decide\b',
-#     r'\bonly you know\b',
-#     r'\byou\'re the only one who\b',
-#     r'\bno one (else )?can (tell|decide|know)\b',
+# Strong multiplist indicators - phrases that suggest relativistic thinking
+MULTIPLIST_STRONG_PATTERNS = [
+    # Deflecting judgment
+    r'\bonly you can (decide|know|answer|figure)',
+    r'\bthat\'s (really )?for you to decide\b',
+    r'\bonly you know\b',
+    r'\byou\'re the only one who\b',
+    r'\bno one (else )?can (tell|decide|know)\b',
     
-#     # Subjectivity framing
-#     r'\bit\'s (really )?(all )?subjective\b',
-#     r'\bit (really )?depends on (the person|you|your|how you)\b',
-#     r'\beveryone\'s (situation|relationship|circumstances) is different\b',
-#     r'\bthere\'s no (right|wrong|one|correct) answer\b',
-#     r'\bno right or wrong (here|answer)\b',
+    # Subjectivity framing
+    r'\bit\'s (really )?(all )?subjective\b',
+    r'\bit (really )?depends on (the person|you|your|how you)\b',
+    r'\beveryone\'s (situation|relationship|circumstances) is different\b',
+    r'\bthere\'s no (right|wrong|one|correct) answer\b',
+    r'\bno right or wrong (here|answer)\b',
     
-#     # Equal validity
-#     r'\bboth (are|views?|perspectives?|sides?) (are )?(valid|legitimate|understandable)\b',
-#     r'\bneither (is|are) (right|wrong)\b',
-#     r'\beveryone\'s entitled to\b',
-#     r'\bwho\'s to say\b',
-#     r'\bwho am i to (judge|say)\b',
+    # Equal validity
+    r'\bboth (are|views?|perspectives?|sides?) (are )?(valid|legitimate|understandable)\b',
+    r'\bneither (is|are) (right|wrong)\b',
+    r'\beveryone\'s entitled to\b',
+    r'\bwho\'s to say\b',
+    r'\bwho am i to (judge|say)\b',
     
-#     # Refusing to evaluate
-#     r'\bi (can\'t|cannot|won\'t) (tell you what|say what|judge)\b',
-#     r'\bnot (for me|my place) to (say|judge|decide)\b',
-#     r'\bi\'m not (going to|gonna) (tell you|judge|say)\b',
-# ]
+    # Refusing to evaluate
+    r'\bi (can\'t|cannot|won\'t) (tell you what|say what|judge)\b',
+    r'\bnot (for me|my place) to (say|judge|decide)\b',
+    r'\bi\'m not (going to|gonna) (tell you|judge|say)\b',
+]
 
-# # Moderate multiplist indicators - softer versions
-# MULTIPLIST_MODERATE_PATTERNS = [
-#     r'\bit (really )?depends\b',
-#     r'\bthat\'s (just )?your (call|decision|choice)\b',
-#     r'\byou (have to|need to|gotta) decide\b',
-#     r'\bup to you\b',
-#     r'\byour (call|choice|decision)\b',
-#     r'\bpersonal (choice|preference|decision)\b',
-#     r'\bdo what (feels|seems) right (to|for) you\b',
-#     r'\bwhatever (you think|works for you|feels right)\b',
-#     r'\bjust my (opinion|two cents|perspective)\b',
-#     r'\beveryone is different\b',
-#     r'\bdifferent things work for different\b',
-# ]
+# Moderate multiplist indicators - softer versions
+MULTIPLIST_MODERATE_PATTERNS = [
+    r'\bit (really )?depends\b',
+    r'\bthat\'s (just )?your (call|decision|choice)\b',
+    r'\byou (have to|need to|gotta) decide\b',
+    r'\bup to you\b',
+    r'\byour (call|choice|decision)\b',
+    r'\bpersonal (choice|preference|decision)\b',
+    r'\bdo what (feels|seems) right (to|for) you\b',
+    r'\bwhatever (you think|works for you|feels right)\b',
+    r'\bjust my (opinion|two cents|perspective)\b',
+    r'\beveryone is different\b',
+    r'\bdifferent things work for different\b',
+    r'\bjust my opinion\b',
+    r'\beveryone.+entitled\b',
+    r'\bwho\'s to say\b',
+    r'\bit\'s subjective\b',
+    r'\bdepends on the person\b',
+    r'\bboth.+valid\b',
+    r'\bneither.+wrong\b',
+    r'\bnot for me to judge\b',
+]
+
+def has_multiplist_indicators(text):
+    """
+    Check if text contains any multiplist indicators.
+    
+    Returns True if any pattern from MULTIPLIST_STRONG_PATTERNS,
+    MULTIPLIST_MODERATE_PATTERNS, or MULTIPLIST_INDICATORS matches.
+    """
+    text_lower = text.lower()
+    
+    # Combine all patterns
+    all_patterns = MULTIPLIST_STRONG_PATTERNS + MULTIPLIST_MODERATE_PATTERNS
+    
+    # Check if any pattern matches
+    for pattern in all_patterns:
+        if re.search(pattern, text_lower):
+            return True
+    
+    return False
 
 # # Anti-patterns: These suggest evaluativist or absolutist, NOT multiplist
 # ANTI_MULTIPLIST_PATTERNS = [
@@ -327,15 +354,21 @@ def get_text_field(entry):
     return None
 
 
-def filter_for_multiplist_labeling(entry, min_words=100, max_words=2000):
+def filter_for_labeling(entry, min_words=100, max_words=2000, require_multiplist_patterns=False):
     """
-    Filter a single entry for suitability for multiplist labeling.
+    Filter a single entry for suitability for labeling.
     
     We want comments that:
     - Are substantive (not too short)
     - Contain reasoning (not just "lol" or "this")
-    - Show multiplist indicators
+    - Optionally: Show multiplist indicators (if require_multiplist_patterns=True)
     - Don't have strong absolutist/evaluativist markers
+    
+    Args:
+        entry: Dataset entry
+        min_words: Minimum word count
+        max_words: Maximum word count
+        require_multiplist_patterns: If True, only include entries with multiplist indicators
     
     Returns: bool - True if suitable, False otherwise
     """
@@ -364,25 +397,17 @@ def filter_for_multiplist_labeling(entry, min_words=100, max_words=2000):
     if text.count('http') > 2 and word_count < 100:
         return False
     
-    # # Score for multiplist indicators
-    # score_data = score_multiplist_indicators(text)
-    
-    # # We want comments with some multiplist signal
-    # # At least one strong match, OR multiple moderate matches
-    # if score_data['n_strong'] >= 1:
-    #     return True
-    # elif score_data['n_moderate'] >= 2 and score_data['n_anti'] == 0:
-    #     return True
-    # elif score_data['multiplist_score'] >= 2:
-    #     return True
-    # else:
-    #     return False
+    # If multiplist pattern filtering is enabled, check for indicators
+    if require_multiplist_patterns:
+        if not has_multiplist_indicators(text):
+            return False
     
     # If all filters pass, the entry is suitable
     return True
 
 
-def extract_multiplist_candidates(ds, dataset_name='relationship_advice', max_samples=10000, progress=True):
+def extract_multiplist_candidates(ds, dataset_name='relationship_advice', max_samples=10000, 
+                                  progress=True, require_multiplist_patterns=False):
     """
     Extract comments that are candidates for multiplist labeling.
     
@@ -391,6 +416,7 @@ def extract_multiplist_candidates(ds, dataset_name='relationship_advice', max_sa
         dataset_name: Name of the dataset/subreddit (used for sample IDs and metadata)
         max_samples: Maximum number of candidates to extract
         progress: Whether to show progress bar
+        require_multiplist_patterns: If True, only include entries with multiplist indicators
     
     Returns a list of dictionaries with sample data and multiplist scores.
     """
@@ -409,8 +435,7 @@ def extract_multiplist_candidates(ds, dataset_name='relationship_advice', max_sa
     for idx in iterator:
         entry = ds[idx]
         
-        is_suitable = filter_for_multiplist_labeling(entry)
-        # filter_stats[reason] += 1
+        is_suitable = filter_for_labeling(entry, require_multiplist_patterns=require_multiplist_patterns)
         
         if is_suitable and len(candidates) < max_samples:
             text = get_text_field(entry)
@@ -421,13 +446,6 @@ def extract_multiplist_candidates(ds, dataset_name='relationship_advice', max_sa
                 'sample_type': 'reddit_comment',
                 'word_count': len(text.split()),
                 'text': text,
-                # 'filter_reason': reason,
-                # 'multiplist_score': score_data['multiplist_score'],
-                # 'n_strong_matches': score_data['n_strong'],
-                # 'n_moderate_matches': score_data['n_moderate'],
-                # 'n_anti_matches': score_data['n_anti'],
-                # 'strong_matches': json.dumps(score_data['strong_matches'][:5]),  # Limit for CSV
-                # 'moderate_matches': json.dumps(score_data['moderate_matches'][:5]),
             })
         
         if len(candidates) >= max_samples:
@@ -622,12 +640,13 @@ def save_labeling_sample(sample, dataset_name='relationship_advice', output_path
 # MAIN EXECUTION
 # ============================================================================
 
-def main(split_name='relationship_advice'):
+def main(split_name='relationship_advice', require_multiplist_patterns=False):
     """
     Main workflow for multiplist extraction from a Reddit subreddit split.
     
     Args:
         split_name: Name of the subreddit split to process (default: 'relationship_advice')
+        require_multiplist_patterns: If True, only include entries with multiplist indicators
     """
     
     # Set random seed
@@ -636,6 +655,13 @@ def main(split_name='relationship_advice'):
     print("="*60)
     print(f"{split_name.upper()} - MULTIPLIST CANDIDATE EXTRACTION")
     print("="*60)
+    
+    if require_multiplist_patterns:
+        print("\n⚠️  Multiplist pattern filtering ENABLED")
+        print("    Only samples with multiplist indicators will be included.")
+    else:
+        print("\nℹ️  Multiplist pattern filtering DISABLED")
+        print("    All samples passing basic filters will be included.")
     
     # Load dataset
     ds = load_reddit_split(split_name)
@@ -647,7 +673,8 @@ def main(split_name='relationship_advice'):
     candidates, filter_stats = extract_multiplist_candidates(
         ds, 
         dataset_name=split_name,
-        max_samples=3000  # Get more than we need for selection
+        max_samples=3000,  # Get more than we need for selection
+        require_multiplist_patterns=require_multiplist_patterns
     )
     
     if not candidates:
@@ -688,9 +715,31 @@ def main(split_name='relationship_advice'):
 
 
 if __name__ == "__main__":
-    import sys
+    import argparse
     
-    # Get split name from command line argument if provided
-    split_name = sys.argv[1] if len(sys.argv) > 1 else 'relationship_advice'
+    parser = argparse.ArgumentParser(
+        description='Extract samples from Reddit subreddit dataset for epistemic stance labeling',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python explore_reddit_ds.py relationship_advice
+  python explore_reddit_ds.py changemyview --filter-multiplist
+  python explore_reddit_ds.py AskHistorians --filter-multiplist
+        """
+    )
+    parser.add_argument(
+        'split_name',
+        type=str,
+        nargs='?',
+        default='relationship_advice',
+        help='Name of the subreddit split to process (default: relationship_advice)'
+    )
+    parser.add_argument(
+        '--filter-multiplist',
+        action='store_true',
+        help='Only include samples that contain multiplist linguistic indicators'
+    )
     
-    main(split_name)
+    args = parser.parse_args()
+    
+    main(args.split_name, require_multiplist_patterns=args.filter_multiplist)

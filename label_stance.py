@@ -1,9 +1,9 @@
 """
-Epistemic Stance Labeling for ChangeMyView Data
-================================================
+Epistemic Stance Labeling
+==========================
 
 This module contains the labeling prompt and API code for labeling
-ChangeMyView posts and responses with epistemic stance using Claude.
+text samples with epistemic stance using Claude.
 
 Adapted for dialogic/argumentative text where people are:
 - Stating and defending positions
@@ -14,11 +14,22 @@ Based on Kuhn et al. (2000) framework:
 - Absolutist: Knowledge is certain, claims are facts
 - Multiplist: Knowledge is subjective, all opinions equally valid  
 - Evaluativist: Knowledge is uncertain but can be evaluated via evidence
+
+Usage:
+    python label_stance.py input_file.csv [--output output.csv] [--pilot-size 50]
+    
+    Examples:
+    python label_stance.py relationship_advice_labeling_sample.csv
+    python label_stance.py cmv_labeling_sample.csv --output custom_output.csv
+    python label_stance.py data.csv --pilot-size 100 --delay 1.0
 """
 
 import json
 import csv
 import time
+import argparse
+import os
+from pathlib import Path
 from anthropic import Anthropic
 
 # ============================================================================
@@ -328,18 +339,80 @@ def main():
     """Main labeling workflow."""
     import pandas as pd
     
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(
+        description='Label epistemic stance for text samples using Claude API',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python label_stance.py relationship_advice_labeling_sample.csv
+  python label_stance.py cmv_labeling_sample.csv --output custom_output.csv
+  python label_stance.py data.csv --pilot-size 100
+        """
+    )
+    parser.add_argument(
+        'input_file',
+        type=str,
+        help='Path to CSV file containing samples to label'
+    )
+    parser.add_argument(
+        '--output', '-o',
+        type=str,
+        default=None,
+        help='Output filename (default: derived from input filename)'
+    )
+    parser.add_argument(
+        '--pilot-size',
+        type=int,
+        default=25,
+        help='Number of samples to label in pilot batch (default: 25)'
+    )
+    parser.add_argument(
+        '--model',
+        type=str,
+        default='claude-sonnet-4-20250514',
+        help='Claude model to use (default: claude-sonnet-4-20250514)'
+    )
+    parser.add_argument(
+        '--delay',
+        type=float,
+        default=0.5,
+        help='Delay between API calls in seconds (default: 0.5)'
+    )
+    
+    args = parser.parse_args()
+    
+    # Validate input file exists
+    if not os.path.exists(args.input_file):
+        print(f"Error: Input file '{args.input_file}' not found.")
+        return
+    
+    # Generate output filename if not provided
+    if args.output is None:
+        input_path = Path(args.input_file)
+        # Remove common suffixes like "_labeling_sample" or "_sample" and add "_labeled"
+        stem = input_path.stem
+        # Try to clean up common patterns
+        for suffix in ['_labeling_sample', '_sample', '_labeling']:
+            if stem.endswith(suffix):
+                stem = stem[:-len(suffix)]
+                break
+        output_path = input_path.parent / f"{stem}_labeled.csv"
+    else:
+        output_path = Path(args.output)
+    
     # Initialize client
     client = Anthropic()
     
     # Load sample
-    print("Loading labeling sample...")
-    df = pd.read_csv("cmv_labeling_sample.csv")
+    print(f"Loading labeling sample from {args.input_file}...")
+    df = pd.read_csv(args.input_file)
     samples = df.to_dict('records')
     
     print(f"Loaded {len(samples)} samples for labeling")
     
     # Start with pilot batch
-    pilot_size = 50
+    pilot_size = min(args.pilot_size, len(samples))
     pilot_samples = samples[:pilot_size]
     
     print(f"\nLabeling pilot batch of {pilot_size} samples...")
@@ -352,29 +425,30 @@ def main():
     results = label_batch(
         client, 
         pilot_samples, 
-        model="claude-sonnet-4-20250514",
-        delay_between_calls=0.5,
+        model=args.model,
+        delay_between_calls=args.delay,
         progress_callback=progress
     )
     
     # Save pilot results
-    save_results(results, pilot_samples, "pilot_labeled.csv")
+    save_results(results, pilot_samples, str(output_path))
     
     print("\n" + "="*60)
     print("PILOT COMPLETE")
     print("="*60)
-    print("""
-    Review pilot_labeled.csv to validate the labeling approach.
+    print(f"""
+    Review {output_path} to validate the labeling approach.
     
     Check:
     1. Are the stance classifications reasonable?
-    3. Do the justifications cite appropriate evidence?
-    4. Is the multiplist category being captured?
+    2. Do the justifications cite appropriate evidence?
+    3. Is the multiplist category being captured?
     
     Key questions:
     - What linguistic patterns distinguish the stances?
     
-    Once validated, scale to full batch by modifying pilot_size.
+    Once validated, scale to full batch by modifying --pilot-size or
+    running again with a larger value.
     """)
 
 

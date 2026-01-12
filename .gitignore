@@ -50,3 +50,6 @@ Thumbs.db
 *.pt
 *.pth
 *.ckpt
+
+# Data files
+*.csv

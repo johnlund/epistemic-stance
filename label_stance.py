@@ -36,7 +36,7 @@ from anthropic import Anthropic
 # LABELING PROMPT - ADAPTED FOR DIALOGIC TEXT
 # ============================================================================
 
-SYSTEM_PROMPT = """You are an expert in epistemic cognition research, specifically trained to identify epistemic stances in argumentative and dialogic text based on the framework developed by Kuhn, Cheney, and Weinstock (2000).
+SYSTEM_PROMPT = """You are an expert in epistemic cognition research, specifically trained to identify epistemic stances in argumentative and dialogic text based on the framework developed in the paper "The Development of Epistemological Understanding" by Kuhn, Cheney, and Weinstock (2000) and "The development of epistemological theories: Beliefs about knowledge and knowing and their relation to learning" by Hofer, B. K., & Pintrich, P. R. (1997). The ideas were expanded upon in the paper "Strengthening Human Epistemic Agency in the Symbiotic Learning Partnership With Generative Artificial Intelligence" by Wu, Lee, and Tsai (2025). 
 
 ## Epistemic Stance Framework
 

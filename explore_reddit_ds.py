@@ -212,6 +212,107 @@ def explore_structure(ds, n_samples=5):
 #         'n_anti': len(anti_matches),
 #     }
 
+    # absolutist_indicators = [
+    #     r'\bobviously\b', r'\bclearly\b', r'\bundeniably\b',
+    #     r'\bthe fact is\b', r'\bthe truth is\b', r'\bno doubt\b',
+    #     r'\bwithout question\b', r'\babsolutely\b', r'\bdefinitely\b',
+    #     r'\beveryone knows\b', r'\bit\'s clear that\b',
+    # ]
+    
+    # multiplist_indicators = [
+    #     r'\bjust my opinion\b', r'\beveryone.+entitled\b', 
+    #     r'\bwho\'s to say\b', r'\bit\'s subjective\b',
+    #     r'\bdepends on the person\b', r'\bboth.+valid\b',
+    #     r'\bneither.+wrong\b', r'\bnot for me to judge\b',
+    # ]
+    
+    # evaluativist_indicators = [
+    #     r'\bthe evidence suggests\b', r'\bon balance\b',
+    #     r'\bwhile.+however\b', r'\balthough.+still\b',
+    #     r'\bi could be wrong\b', r'\bmore likely\b',
+    #     r'\bstronger argument\b', r'\bbetter supported\b',
+    #     r'\bhaving considered\b', r'\bweighing\b',
+    #     r'\bI\'ve changed my mind\b', r'\byou\'ve convinced me\b',
+    # ]
+
+# def has_reasoning_indicators(text):
+#     """
+#     Check if text contains indicators of epistemic reasoning.
+    
+#     We want posts where people are actually reasoning about claims,
+#     not just stating preferences or making jokes.
+#     """
+#     reasoning_patterns = [
+#         r'\bbecause\b',
+#         r'\btherefore\b',
+#         r'\bhowever\b',
+#         r'\balthough\b',
+#         r'\bevidence\b',
+#         r'\breason\b',
+#         r'\bargument\b',
+#         r'\bbelieve\b',
+#         r'\bthink\b',
+#         r'\bprove\b',
+#         r'\bshow[s]?\b',
+#         r'\bdemonstrate\b',
+#         r'\bin my (view|opinion)\b',
+#         r'\bon the other hand\b',
+#         r'\bfor example\b',
+#         r'\bfor instance\b',
+#         r'\baccording to\b',
+#         r'\bresearch\b',
+#         r'\bstudy\b',
+#         r'\bdata\b',
+#     ]
+    
+#     text_lower = text.lower()
+#     matches = sum(1 for pattern in reasoning_patterns if re.search(pattern, text_lower))
+    
+#     return matches >= 2  # At least 2 reasoning indicators
+
+
+# def filter_utterance_for_epistemic_labeling(text, min_words=50, max_words=None):
+#     """
+#     Filter a single utterance for suitability for epistemic stance labeling.
+    
+#     Args:
+#         text: The utterance text
+#         min_words: Minimum word count (need enough content to assess stance)
+#         max_words: Maximum word count (for practical labeling)
+    
+#     Returns: (is_suitable, reason)
+#     """
+#     word_count = len(text.split())
+    
+#     # Length filters
+#     if word_count < min_words:
+#         return False, f"too_short ({word_count} words)"
+    
+#     # No max limit for labeling stage
+#     # Long posts often contain the richest epistemic reasoning
+#     # if word_count > max_words:
+#     #     return False, f"too_long ({word_count} words)"
+    
+#     # Check for deleted/removed content
+#     if '[deleted]' in text or '[removed]' in text:
+#         return False, "deleted_content"
+    
+#     # Check for reasoning indicators
+#     if not has_reasoning_indicators(text):
+#         return False, "no_reasoning_indicators"
+    
+#     # Filter out pure questions without argumentation
+#     sentences = text.split('.')
+#     question_ratio = sum(1 for s in sentences if '?' in s) / max(len(sentences), 1)
+#     if question_ratio > 0.7:
+#         return False, "mostly_questions"
+    
+#     # Filter out very short sentences (likely not substantive)
+#     avg_sentence_length = word_count / max(len(sentences), 1)
+#     if avg_sentence_length < 8:
+#         return False, "choppy_writing"
+    
+#     return True, "suitable"
 
 # ============================================================================
 # STEP 3: Filter for suitable samples

@@ -171,31 +171,29 @@ MULTIPLIST_STRONG_PATTERNS = [
     r'\bonly you know\b',
     r'\byou\'re the only one who\b',
     r'\bno one (else )?can (tell|decide|know)\b',
-    
     # Subjectivity framing
     r'\bit\'s (really )?(all )?subjective\b',
     r'\bit (really )?depends on (the person|you|your|how you)\b',
     r'\beveryone\'s (situation|relationship|circumstances) is different\b',
     r'\bthere\'s no (right|wrong|one|correct) answer\b',
     r'\bno right or wrong (here|answer)\b',
-    
     # Equal validity
     r'\bboth (are|views?|perspectives?|sides?) (are )?(valid|legitimate|understandable)\b',
     r'\bneither (is|are) (right|wrong)\b',
     r'\beveryone\'s entitled to\b',
     r'\bwho\'s to say\b',
     r'\bwho am i to (judge|say)\b',
-    
     # Refusing to evaluate
     r'\bi (can\'t|cannot|won\'t) (tell you what|say what|judge)\b',
     r'\bnot (for me|my place) to (say|judge|decide)\b',
-    r'\bi\'m not (going to|gonna) (tell you|judge|say)\b',
+    r'\bi\'m not (going to|gonna) (tell you|judge|say)\b',\
+    r'\bboth (could be|are) (true|right|correct)\b',
+    r'\b(stay|leave).+(stay|leave).+both (make sense|valid)\b',  # contradictory advice presented as equal
 ]
 
 # Moderate multiplist indicators - softer versions
 MULTIPLIST_MODERATE_PATTERNS = [
-    r'\bit (really )?depends\b',
-    r'\bdepends on the person\b',
+    r'\bit (really )?depends on (the person|who you are|your perspective)\b',
     r'\bthat\'s (just )?your (call|decision|choice)\b',
     r'\byou (have to|need to|gotta) decide\b',
     r'\bup to you\b',
@@ -212,6 +210,8 @@ MULTIPLIST_MODERATE_PATTERNS = [
     r'\bboth.+valid\b',
     r'\bneither.+wrong\b',
     r'\bnot for me to judge\b',
+    r'\bi (agree|hear you|understand)\b.{0,20}$',  # Agreement without adding substance (end of response)
+    r'\bthat makes sense\b.{0,30}$',  # Validating without engaging
 ]
 
 def has_multiplist_indicators(text):

@@ -602,7 +602,7 @@ def main(split_name='relationship_advice', require_multiplist_patterns=False):
     candidates = extract_candidates(
         ds, 
         dataset_name=split_name,
-        max_samples=30000,  # Get more than we need for selection
+        max_samples=90000,  # Get more than we need for selection
         require_multiplist_patterns=require_multiplist_patterns
     )
     
@@ -613,7 +613,7 @@ def main(split_name='relationship_advice', require_multiplist_patterns=False):
         return
     
     # Create labeling sample
-    sample = create_labeling_sample(candidates, n_samples=1000)
+    sample = create_labeling_sample(candidates, n_samples=3000)
     
     # Save sample
     df = save_labeling_sample(sample, dataset_name=split_name)

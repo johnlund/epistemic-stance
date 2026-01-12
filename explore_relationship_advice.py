@@ -306,8 +306,8 @@ def extract_multiplist_candidates(ds, dataset_name='relationship_advice', max_sa
     for idx in iterator:
         entry = ds[idx]
         
-        is_suitable, reason, score_data = filter_for_multiplist_labeling(entry)
-        filter_stats[reason] += 1
+        is_suitable = filter_for_multiplist_labeling(entry)
+        # filter_stats[reason] += 1
         
         if is_suitable and len(candidates) < max_samples:
             text = get_text_field(entry)
@@ -318,13 +318,13 @@ def extract_multiplist_candidates(ds, dataset_name='relationship_advice', max_sa
                 'sample_type': 'reddit_comment',
                 'word_count': len(text.split()),
                 'text': text,
-                'filter_reason': reason,
-                'multiplist_score': score_data['multiplist_score'],
-                'n_strong_matches': score_data['n_strong'],
-                'n_moderate_matches': score_data['n_moderate'],
-                'n_anti_matches': score_data['n_anti'],
-                'strong_matches': json.dumps(score_data['strong_matches'][:5]),  # Limit for CSV
-                'moderate_matches': json.dumps(score_data['moderate_matches'][:5]),
+                # 'filter_reason': reason,
+                # 'multiplist_score': score_data['multiplist_score'],
+                # 'n_strong_matches': score_data['n_strong'],
+                # 'n_moderate_matches': score_data['n_moderate'],
+                # 'n_anti_matches': score_data['n_anti'],
+                # 'strong_matches': json.dumps(score_data['strong_matches'][:5]),  # Limit for CSV
+                # 'moderate_matches': json.dumps(score_data['moderate_matches'][:5]),
             })
         
         if len(candidates) >= max_samples:

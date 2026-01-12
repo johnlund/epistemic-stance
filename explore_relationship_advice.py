@@ -220,13 +220,13 @@ def score_multiplist_indicators(text):
 def get_text_field(entry):
     """Extract the text content from an entry, handling different possible field names."""
     # Try common field names
-    for field in ['normalizedBody']:
+    for field in ['body']:
         if field in entry and entry[field]:
             return entry[field]
     return None
 
 
-def filter_for_multiplist_labeling(entry, min_words=50, max_words=None):
+def filter_for_multiplist_labeling(entry, min_words=100, max_words=2000):
     """
     Filter a single entry for suitability for multiplist labeling.
     
@@ -252,8 +252,8 @@ def filter_for_multiplist_labeling(entry, min_words=50, max_words=None):
     if word_count < min_words:
         return False, f"too_short ({word_count} words)", None
     
-    # if word_count > max_words:
-    #     return False, f"too_long ({word_count} words)", None
+    if word_count > max_words:
+        return False, f"too_long ({word_count} words)", None
     
     # Check for deleted/removed
     if '[deleted]' in text or '[removed]' in text:
@@ -516,32 +516,32 @@ def main(split_name='relationship_advice'):
     ds = load_reddit_split(split_name)
     
     # Explore structure
-    explore_structure(ds, n_samples=3)
+    # explore_structure(ds, n_samples=3)
     
-    # # Extract candidates
-    # candidates, filter_stats = extract_multiplist_candidates(
-    #     ds, 
-    #     dataset_name=split_name,
-    #     max_samples=3000  # Get more than we need for selection
-    # )
+    # Extract candidates
+    candidates, filter_stats = extract_multiplist_candidates(
+        ds, 
+        dataset_name=split_name,
+        max_samples=3000  # Get more than we need for selection
+    )
     
-    # if not candidates:
-    #     print("\n❌ No multiplist candidates found!")
-    #     print("The dataset structure may be different than expected.")
-    #     print("Check the column names and adjust get_text_field() if needed.")
-    #     return
+    if not candidates:
+        print("\n❌ No multiplist candidates found!")
+        print("The dataset structure may be different than expected.")
+        print("Check the column names and adjust get_text_field() if needed.")
+        return
     
-    # # Create labeling sample
-    # sample = create_labeling_sample(candidates, n_samples=1000)
+    # Create labeling sample
+    sample = create_labeling_sample(candidates, n_samples=1000)
     
-    # # Save sample
-    # df = save_labeling_sample(sample, dataset_name=split_name)
+    # Save sample
+    df = save_labeling_sample(sample, dataset_name=split_name)
     
-    # # Preview examples
-    # preview_examples(sample, n_examples=5)
+    # Preview examples
+    preview_examples(sample, n_examples=5)
     
-    # # Analyze characteristics
-    # analyze_sample_characteristics(sample)
+    # Analyze characteristics
+    analyze_sample_characteristics(sample)
     
     print("\n" + "="*60)
     print("NEXT STEPS")

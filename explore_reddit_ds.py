@@ -104,6 +104,61 @@ def explore_structure(ds, n_samples=5):
 # STEP 2: Define multiplist linguistic patterns
 # ============================================================================
 
+GENERAL_REASONING_PATTERNS = [
+    r'\bbecause\b',
+    r'\btherefore\b',
+    r'\bhowever\b',
+    r'\balthough\b',
+    r'\bevidence\b',
+    r'\breason\b',
+    r'\bargument\b',
+    r'\bbelieve\b',
+    r'\bthink\b',
+    r'\bprove\b',
+    r'\bshow[s]?\b',
+    r'\bdemonstrate\b',
+    r'\bin my (view|opinion)\b',
+    r'\bon the other hand\b',
+    r'\bfor example\b',
+    r'\bfor instance\b',
+    r'\baccording to\b',
+    r'\bresearch\b',
+    r'\bstudy\b',
+    r'\bdata\b',
+]
+
+ABSOLUTIST_PATTERNS = [
+    r'\bobviously\b', r'\bclearly\b', r'\bundeniably\b',
+    r'\bthe fact is\b', r'\bthe truth is\b', r'\bno doubt\b',
+    r'\bwithout question\b', r'\babsolutely\b', r'\bdefinitely\b',
+    r'\beveryone knows\b', r'\bit\'s clear that\b',
+
+    # Absolutist markers (certainty)
+    r'\byou (should|must|need to) (definitely|absolutely)\b',
+    r'\bthere\'s no (question|doubt)\b',
+    r'\bobviously\b',
+    r'\bclearly (you should|the answer)\b',
+    r'\b(dump|leave|divorce) (him|her|them)\b',  # Strong directive advice
+    r'\bred flag\b',  # Definitive judgment
+    r'\bdeal ?breaker\b',
+]
+
+EVALUATIVIST_PATTERNS = [
+    r'\bthe evidence suggests\b', r'\bon balance\b',
+    r'\bwhile.+however\b', r'\balthough.+still\b',
+    r'\bi could be wrong\b', r'\bmore likely\b',
+    r'\bstronger argument\b', r'\bbetter supported\b',
+    r'\bhaving considered\b', r'\bweighing\b',
+    r'\bI\'ve changed my mind\b', r'\byou\'ve convinced me\b',
+
+    # Evaluativist markers (weighing evidence)
+    r'\bthe (better|best|stronger) (option|choice|argument)\b',
+    r'\bon balance\b',
+    r'\bweighing\b',
+    r'\bmore (likely|reasonable|justified)\b',
+    r'\bthe evidence (suggests|shows)\b',
+]
+
 # Strong multiplist indicators - phrases that suggest relativistic thinking
 MULTIPLIST_STRONG_PATTERNS = [
     # Deflecting judgment
@@ -154,6 +209,11 @@ MULTIPLIST_MODERATE_PATTERNS = [
     r'\bboth.+valid\b',
     r'\bneither.+wrong\b',
     r'\bnot for me to judge\b',
+
+    r'\bjust my opinion\b', r'\beveryone.+entitled\b', 
+    r'\bwho\'s to say\b', r'\bit\'s subjective\b',
+    r'\bdepends on the person\b', r'\bboth.+valid\b',
+    r'\bneither.+wrong\b', r'\bnot for me to judge\b',
 ]
 
 def has_multiplist_indicators(text):
@@ -175,127 +235,18 @@ def has_multiplist_indicators(text):
     
     return False
 
-# # Anti-patterns: These suggest evaluativist or absolutist, NOT multiplist
-# ANTI_MULTIPLIST_PATTERNS = [
-#     # Evaluativist markers (weighing evidence)
-#     r'\bthe (better|best|stronger) (option|choice|argument)\b',
-#     r'\bon balance\b',
-#     r'\bweighing\b',
-#     r'\bmore (likely|reasonable|justified)\b',
-#     r'\bthe evidence (suggests|shows)\b',
+def has_reasoning_indicators(text):
+    """
+    Check if text contains indicators of epistemic reasoning.
     
-#     # Absolutist markers (certainty)
-#     r'\byou (should|must|need to) (definitely|absolutely)\b',
-#     r'\bthere\'s no (question|doubt)\b',
-#     r'\bobviously\b',
-#     r'\bclearly (you should|the answer)\b',
-#     r'\b(dump|leave|divorce) (him|her|them)\b',  # Strong directive advice
-#     r'\bred flag\b',  # Definitive judgment
-#     r'\bdeal ?breaker\b',
-# ]
-
-
-# def score_multiplist_indicators(text):
-#     """
-#     Score a text for multiplist indicators.
+    We want posts where people are actually reasoning about claims,
+    not just stating preferences or making jokes.
+    """
     
-#     Returns:
-#         dict with:
-#         - strong_matches: list of strong pattern matches
-#         - moderate_matches: list of moderate pattern matches
-#         - anti_matches: list of anti-multiplist pattern matches
-#         - multiplist_score: overall score (higher = more multiplist)
-#     """
-#     text_lower = text.lower()
+    text_lower = text.lower()
+    matches = sum(1 for pattern in GENERAL_REASONING_PATTERNS if re.search(pattern, text_lower))
     
-#     strong_matches = []
-#     for pattern in MULTIPLIST_STRONG_PATTERNS:
-#         matches = re.findall(pattern, text_lower)
-#         if matches:
-#             strong_matches.extend(matches if isinstance(matches[0], str) else [m[0] for m in matches])
-    
-#     moderate_matches = []
-#     for pattern in MULTIPLIST_MODERATE_PATTERNS:
-#         matches = re.findall(pattern, text_lower)
-#         if matches:
-#             moderate_matches.extend(matches if isinstance(matches[0], str) else [m[0] for m in matches])
-    
-#     anti_matches = []
-#     for pattern in ANTI_MULTIPLIST_PATTERNS:
-#         matches = re.findall(pattern, text_lower)
-#         if matches:
-#             anti_matches.extend(matches if isinstance(matches[0], str) else [m[0] for m in matches])
-    
-#     # Calculate score: strong patterns worth more, anti-patterns subtract
-#     score = (len(strong_matches) * 3) + (len(moderate_matches) * 1) - (len(anti_matches) * 2)
-    
-#     return {
-#         'strong_matches': strong_matches,
-#         'moderate_matches': moderate_matches,
-#         'anti_matches': anti_matches,
-#         'multiplist_score': score,
-#         'n_strong': len(strong_matches),
-#         'n_moderate': len(moderate_matches),
-#         'n_anti': len(anti_matches),
-#     }
-
-    # absolutist_indicators = [
-    #     r'\bobviously\b', r'\bclearly\b', r'\bundeniably\b',
-    #     r'\bthe fact is\b', r'\bthe truth is\b', r'\bno doubt\b',
-    #     r'\bwithout question\b', r'\babsolutely\b', r'\bdefinitely\b',
-    #     r'\beveryone knows\b', r'\bit\'s clear that\b',
-    # ]
-    
-    # multiplist_indicators = [
-    #     r'\bjust my opinion\b', r'\beveryone.+entitled\b', 
-    #     r'\bwho\'s to say\b', r'\bit\'s subjective\b',
-    #     r'\bdepends on the person\b', r'\bboth.+valid\b',
-    #     r'\bneither.+wrong\b', r'\bnot for me to judge\b',
-    # ]
-    
-    # evaluativist_indicators = [
-    #     r'\bthe evidence suggests\b', r'\bon balance\b',
-    #     r'\bwhile.+however\b', r'\balthough.+still\b',
-    #     r'\bi could be wrong\b', r'\bmore likely\b',
-    #     r'\bstronger argument\b', r'\bbetter supported\b',
-    #     r'\bhaving considered\b', r'\bweighing\b',
-    #     r'\bI\'ve changed my mind\b', r'\byou\'ve convinced me\b',
-    # ]
-
-# def has_reasoning_indicators(text):
-#     """
-#     Check if text contains indicators of epistemic reasoning.
-    
-#     We want posts where people are actually reasoning about claims,
-#     not just stating preferences or making jokes.
-#     """
-#     reasoning_patterns = [
-#         r'\bbecause\b',
-#         r'\btherefore\b',
-#         r'\bhowever\b',
-#         r'\balthough\b',
-#         r'\bevidence\b',
-#         r'\breason\b',
-#         r'\bargument\b',
-#         r'\bbelieve\b',
-#         r'\bthink\b',
-#         r'\bprove\b',
-#         r'\bshow[s]?\b',
-#         r'\bdemonstrate\b',
-#         r'\bin my (view|opinion)\b',
-#         r'\bon the other hand\b',
-#         r'\bfor example\b',
-#         r'\bfor instance\b',
-#         r'\baccording to\b',
-#         r'\bresearch\b',
-#         r'\bstudy\b',
-#         r'\bdata\b',
-#     ]
-    
-#     text_lower = text.lower()
-#     matches = sum(1 for pattern in reasoning_patterns if re.search(pattern, text_lower))
-    
-#     return matches >= 2  # At least 2 reasoning indicators
+    return matches >= 2  # At least 2 reasoning indicators
 
 
 # def filter_utterance_for_epistemic_labeling(text, min_words=50, max_words=None):

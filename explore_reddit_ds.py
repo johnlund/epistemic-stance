@@ -355,7 +355,6 @@ def extract_candidates(ds, dataset_name='relationship_advice', max_samples=10000
     Returns a list of dictionaries with sample data and multiplist scores.
     """
     candidates = []
-    filter_stats = Counter()
     
     # Create a short prefix for sample IDs (first 2-3 letters of dataset name)
     prefix = dataset_name[:3].lower() if len(dataset_name) >= 3 else dataset_name.lower()
@@ -364,7 +363,7 @@ def extract_candidates(ds, dataset_name='relationship_advice', max_samples=10000
     n_to_check = min(max_samples * 10, len(ds))  # Check more than we need
     indices = random.sample(range(len(ds)), n_to_check) if n_to_check < len(ds) else range(len(ds))
     
-    iterator = tqdm(indices, desc="Scanning for multiplist candidates") if progress else indices
+    iterator = tqdm(indices, desc="Scanning for candidates") if progress else indices
     
     for idx in iterator:
         entry = ds[idx]
@@ -388,14 +387,10 @@ def extract_candidates(ds, dataset_name='relationship_advice', max_samples=10000
     print(f"\n" + "="*60)
     print("FILTERING RESULTS")
     print("="*60)
-    print(f"\nTotal comments scanned: {sum(filter_stats.values())}")
-    print(f"Multiplist candidates found: {len(candidates)}")
-    print(f"\nFilter breakdown:")
-    for reason, count in filter_stats.most_common():
-        pct = 100 * count / sum(filter_stats.values())
-        print(f"  {reason}: {count} ({pct:.1f}%)")
+    print(f"\nTotal comments scanned: {n_to_check}")
+    print(f"Candidates found: {len(candidates)}")
     
-    return candidates, filter_stats
+    return candidates
 
 
 # ============================================================================
@@ -607,7 +602,7 @@ def main(split_name='relationship_advice', require_multiplist_patterns=False):
     candidates = extract_candidates(
         ds, 
         dataset_name=split_name,
-        max_samples=10000,  # Get more than we need for selection
+        max_samples=30000,  # Get more than we need for selection
         require_multiplist_patterns=require_multiplist_patterns
     )
     

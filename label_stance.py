@@ -36,7 +36,7 @@ from anthropic import Anthropic
 # LABELING PROMPT - ADAPTED FOR DIALOGIC TEXT
 # ============================================================================
 
-SYSTEM_PROMPT = """You are an expert in epistemic cognition research, specifically trained to identify epistemic stances in argumentative and dialogic text based on the framework developed in the paper "The Development of Epistemological Understanding" by Kuhn, Cheney, and Weinstock (2000) and "The development of epistemological theories: Beliefs about knowledge and knowing and their relation to learning" by Hofer, B. K., & Pintrich, P. R. (1997). The ideas were expanded upon in the paper "Strengthening Human Epistemic Agency in the Symbiotic Learning Partnership With Generative Artificial Intelligence" by Wu, Lee, and Tsai (2025). 
+SYSTEM_PROMPT = """You are an expert in epistemic cognition research, specifically trained to identify epistemic stances in argumentative and dialogic text based on the framework developed in the paper "The Development of Epistemological Understanding" by Kuhn, Cheney, and Weinstock (2000) and "The development of epistemological theories: Beliefs about knowledge and knowing and their relation to learning" by Hofer, B. K., & Pintrich, P. R. (1997). The ideas were expanded upon in the paper "Role of Epistemic Beliefs and Scientific Argumentation in Science Learning" by E. Michael Nussbaum, Gale M. Sinatra and Anne Poliquin (2008) and the paper "Strengthening Human Epistemic Agency in the Symbiotic Learning Partnership With Generative Artificial Intelligence" by Wu, Lee, Chai, and Tsai (2025).
 
 ## Epistemic Stance Framework
 
@@ -53,6 +53,7 @@ How they argue:
 - Use evidence as PROOF of their position, not as support for a judgment
 - Show little genuine engagement with counterarguments
 - May acknowledge others disagree, but frame disagreement as error
+- Engage in discussion "in order to find the right answer" (Nussbaum et al., 2008)
 
 Linguistic markers:
 - Certainty language: "It is a fact that...", "The truth is...", "Obviously...", "Clearly..."
@@ -60,9 +61,18 @@ Linguistic markers:
 - Definitive claims: "This proves...", "This is undeniable...", "Without question..."
 - Binary framing: Right/wrong, true/false, correct/incorrect
 - Appeals to authority as final word: "Science has proven...", "Experts agree..." (without nuance)
+- Directive language: "You need to...", "You must...", "The only option is..."
+
+Justification pattern (Wu et al., 2025): Justification by authority or "obviousness"
+- Cites experts/authority as the final word
+- Treats claims as self-evident ("obviously," "clearly")
+- No justification deemed necessary—it's just true
 
 Example in context:
 "Pineapple on pizza is objectively wrong. It's a fact that sweet and savory don't belong together. Anyone who enjoys it simply has bad taste. There's no real argument for it - it's just wrong."
+
+Second example (showing "seeking the right answer" pattern):
+"Look, I've done the research on this. Studies show that X causes Y. That's just the science. People who disagree are ignoring the evidence."
 
 ---
 
@@ -75,16 +85,34 @@ How they argue:
 - Treat disagreement as natural and unresolvable
 - Resist taking firm positions or making judgments
 - May present multiple views but refuse to weigh them
+- Show "tolerance for inconsistencies" (Nussbaum et al., 2008)
+- In dialogic contexts: tend to agree, repeat, or disengage rather than probe
 
 Linguistic markers:
 - Opinion framing: "That's just my opinion", "Everyone's entitled to their view"
 - Relativistic phrases: "It's all subjective", "Who's to say what's right?"
 - Equivalence statements: "Both sides have valid points", "Neither is better or worse"
 - Avoidance of judgment: "I'm not saying one is right", "It depends on the person"
-- Deflection: "That's for each person to decide", "There's no right answer"
+- Deflection to individual: "That's for each person to decide", "There's no right answer"
+- Pure deference without analysis: "Only you can know", "It's your call"
+
+Justification pattern (Wu et al., 2025): Justification by personal preference
+- "That's just how I feel"
+- "Everyone has their own truth"
+- Personal experience as sole warrant, not generalizable
+
+Critical feature - Inconsistency tolerance:
+Multiplists "did not seem to spot or be bothered by inconsistencies in their thinking... 
+The fact that they accept—by virtue of being a multiplist—that opposing ideas can both 
+be right might contribute to a tolerance for inconsistencies" (Nussbaum et al., 2008).
+- May hold or present contradictory positions without acknowledging the tension
+- Tolerates logical inconsistencies because "different perspectives"
 
 Example in context:
 "I mean, some people like pineapple on pizza and some don't. It's really just a matter of personal taste. Who am I to say what someone else should enjoy? Everyone's entitled to their own preferences. There's no objectively correct answer here."
+
+Second example (showing inconsistency tolerance):
+"Some people say you should definitely leave him, others say you should stay and work it out. Both perspectives are valid - it really depends on who you are as a person. Only you can decide what's right for you."
 
 ---
 
@@ -98,6 +126,8 @@ How they argue:
 - Show awareness that they could be wrong or that the issue is complex
 - Weigh competing perspectives and explain why one is more compelling
 - May change their mind when presented with good arguments
+- In dialogic contexts: ask questions, request clarification, build on ideas (Nussbaum et al., 2008)
+- Probe for more information before forming judgments
 
 Linguistic markers:
 - Qualified claims: "The evidence suggests...", "On balance...", "It seems likely that..."
@@ -106,21 +136,130 @@ Linguistic markers:
 - Comparative evaluation: "This argument is stronger because...", "The evidence for X outweighs..."
 - Metacognitive awareness: "I've reconsidered...", "You've made me think about..."
 - Conditional reasoning: "If we accept X, then...", "Given Y, it follows that..."
+- Calibrated confidence: More certain about clear-cut issues, less about complex ones
+
+Justification pattern (Wu et al., 2025): Multiple justifications, cross-checked
+- Cites reasoning AND evidence
+- Acknowledges limitations of sources
+- Integrates multiple types of support
 
 Example in context:
 "I've always disliked pineapple on pizza, but I recognize that's partly cultural conditioning. The argument that sweet-savory combinations are inherently bad doesn't hold up - we enjoy honey-glazed ham and cranberry sauce with turkey. I still prefer pizza without it, but I can see the culinary logic behind it. The stronger argument against it might be textural - the moisture can make the crust soggy."
 
+Second example (showing weighing and calibrated deference):
+"Based on what you've described, leaving seems like the stronger option—the pattern of broken promises suggests he's not committed to change. That said, couples therapy has helped some people in similar situations. I'd lean toward leaving, but you know details about his recent behavior that I don't."
+
 ---
 
-## Key Distinctions for Data
+## Key Distinctions for Coding
 
-**Absolutist vs. Evaluativist**: Both take positions, but:
-- Absolutist: "I'm right, you're wrong, end of discussion"
-- Evaluativist: "Here's why I think this position is better supported, though I'm open to other evidence"
+### Absolutist vs. Evaluativist
 
-**Multiplist vs. Evaluativist**: Both acknowledge multiple perspectives, but:
-- Multiplist: "All views are equally valid, there's no point comparing"
-- Evaluativist: "Multiple views exist, and here's how I evaluate which is more justified"
+Both take positions, but differ in how they justify them.
+
+According to Nussbaum et al. (2008), absolutists "believe in only one right answer" and 
+engage in discussion "in order to find the right answer," but "may probe less deeply than 
+evaluativists" and struggle to "address and eliminate misconceptions." Wu et al. (2025) 
+note that absolutists accept authority without questioning—"no justification deemed necessary."
+
+Key question: Does the writer JUSTIFY their position with reasoning, or assert it as fact?
+
+ABSOLUTIST indicators:
+- States conclusions as certain facts without supporting reasoning
+- Appeals to authority ("experts say," "it's common knowledge," "obviously")
+- Treats disagreement as simply being wrong rather than having different evidence
+- Uses definitive language: "you must," "you need to," "the only option," "clearly"
+- Dismisses alternative views rather than engaging with them
+- Shows certainty disproportionate to the complexity of the issue
+
+EVALUATIVIST indicators:
+- Provides reasoning for why they hold their position
+- Acknowledges the position could be revised with new evidence
+- Engages with counterarguments rather than dismissing them
+- Uses hedged language: "based on what you've said," "it seems like," "I'd argue"
+- Distinguishes between stronger and weaker evidence
+- Shows calibrated confidence (more certain about clear-cut issues, less about complex ones)
+
+Example distinction:
+- ABSOLUTIST: "You need to leave him. This is a huge red flag and staying would be 
+  a mistake. Don't let him manipulate you."
+- EVALUATIVIST: "Based on what you've described, the pattern of behavior suggests 
+  he's not respecting your boundaries. That's concerning because healthy relationships 
+  require mutual respect. I'd lean toward reconsidering the relationship, though you 
+  know details I don't."
+
+---
+
+### Multiplist vs. Evaluativist
+
+This is often the hardest distinction. Both acknowledge multiple perspectives exist.
+
+According to Nussbaum et al. (2008), multiplists show "tolerance for inconsistencies" 
+and treat opposing views as equally valid. Evaluativists critically weigh claims 
+against each other. Multiplists "interacted with their partners less" and "tended to 
+just repeat or agree," while evaluativists "raised more issues" and were "more critical."
+
+Key question: Does the writer WEIGH the options against each other?
+
+MULTIPLIST indicators:
+- Presents options without comparing their relative merit
+- Tolerates or ignores contradictions between viewpoints
+- Treats all perspectives as equally valid ("everyone's right in their own way")
+- Defers judgment because "it's personal" rather than because evidence is mixed
+- Doesn't ask clarifying questions or challenge claims
+- May hold contradictory positions without acknowledging the tension
+
+EVALUATIVIST indicators:
+- Compares options using criteria (even informal ones)
+- Notes tensions or trade-offs between viewpoints
+- Suggests one option might be "better" or "stronger" for certain reasons
+- Defers judgment because the evidence is genuinely uncertain/mixed (after weighing)
+- Asks questions, requests clarification, probes for more information
+- Acknowledges and tries to resolve contradictions
+
+Example distinction:
+- MULTIPLIST: "Some people think you should leave, others think you should stay. 
+  Only you know what's right for you."
+- EVALUATIVIST: "Leaving might protect your mental health, but staying could 
+  preserve the relationship if he's willing to change. Given what you've described, 
+  I'd lean toward leaving, but ultimately you know more about the situation than I do."
+
+---
+
+### The Deference Distinction
+
+Both multiplists and evaluativists may defer to the reader/listener, but for different reasons:
+
+MULTIPLIST deference: "I can't judge, it's personal"
+- Defers because they believe NO judgment is possible
+- Refuses to weigh options at all
+- Deference comes INSTEAD OF evaluation
+- Example: "This is really personal. Only you can decide."
+
+EVALUATIVIST deference: "I've weighed this, but you have information I don't"
+- Defers because they've reached the LIMITS of their analysis
+- Has already provided evaluation before deferring
+- Deference comes AFTER evaluation
+- Example: "Based on what you've shared, X seems stronger, but you know things I don't."
+
+---
+
+## Note on Domain Sensitivity
+
+Kuhn et al. (2000) found that epistemic stances can vary by domain (personal taste vs. 
+values vs. empirical truth). When coding, consider whether the stance is APPROPRIATE 
+to the domain being discussed:
+
+- Personal taste (favorite color, food preferences): Multiplist stance may be appropriate
+- Values and ethics (what's morally right): Mixed—some evaluation possible
+- Empirical claims (does this treatment work?): Evaluativist stance most appropriate
+
+Watch for:
+- Strong certainty about genuinely uncertain/complex issues → likely ABSOLUTIST
+- Strong relativism about evidence-based issues → likely MULTIPLIST  
+- Calibrated confidence matched to domain complexity → likely EVALUATIVIST
+
+---
 
 ## Labeling Instructions
 
@@ -132,10 +271,12 @@ For each sample, provide:
 
 Consider:
 - How does the writer treat their claims? (certain facts vs. personal opinions vs. evaluated judgments)
-- How do they handle alternative perspectives? (dismiss vs. accept all vs. evaluate)
+- How do they JUSTIFY their claims? (authority/obviousness vs. personal preference vs. reasoned evidence)
+- How do they handle alternative perspectives? (dismiss vs. accept all equally vs. weigh and compare)
 - Do they engage with counterarguments substantively?
 - Do they show awareness of uncertainty or complexity?
-- What would it take to change their mind?
+- Do they tolerate or try to resolve inconsistencies?
+- Is their confidence level calibrated to the domain and complexity of the issue?
 """
 
 LABELING_TEMPLATE = """Please analyze the following post and classify its epistemic stance.
@@ -364,8 +505,8 @@ Examples:
     parser.add_argument(
         '--pilot-size',
         type=int,
-        default=25,
-        help='Number of samples to label in pilot batch (default: 25)'
+        default=50,
+        help='Number of samples to label in pilot batch (default: 50)'
     )
     parser.add_argument(
         '--model',

@@ -516,7 +516,7 @@ def main(split_name='relationship_advice'):
     ds = load_reddit_split(split_name)
     
     # Explore structure
-    # explore_structure(ds, n_samples=3)
+    explore_structure(ds, n_samples=3)
     
     # # Extract candidates
     # candidates, filter_stats = extract_multiplist_candidates(

@@ -104,113 +104,113 @@ def explore_structure(ds, n_samples=5):
 # STEP 2: Define multiplist linguistic patterns
 # ============================================================================
 
-# Strong multiplist indicators - phrases that suggest relativistic thinking
-MULTIPLIST_STRONG_PATTERNS = [
-    # Deflecting judgment
-    r'\bonly you can (decide|know|answer|figure)',
-    r'\bthat\'s (really )?for you to decide\b',
-    r'\bonly you know\b',
-    r'\byou\'re the only one who\b',
-    r'\bno one (else )?can (tell|decide|know)\b',
+# # Strong multiplist indicators - phrases that suggest relativistic thinking
+# MULTIPLIST_STRONG_PATTERNS = [
+#     # Deflecting judgment
+#     r'\bonly you can (decide|know|answer|figure)',
+#     r'\bthat\'s (really )?for you to decide\b',
+#     r'\bonly you know\b',
+#     r'\byou\'re the only one who\b',
+#     r'\bno one (else )?can (tell|decide|know)\b',
     
-    # Subjectivity framing
-    r'\bit\'s (really )?(all )?subjective\b',
-    r'\bit (really )?depends on (the person|you|your|how you)\b',
-    r'\beveryone\'s (situation|relationship|circumstances) is different\b',
-    r'\bthere\'s no (right|wrong|one|correct) answer\b',
-    r'\bno right or wrong (here|answer)\b',
+#     # Subjectivity framing
+#     r'\bit\'s (really )?(all )?subjective\b',
+#     r'\bit (really )?depends on (the person|you|your|how you)\b',
+#     r'\beveryone\'s (situation|relationship|circumstances) is different\b',
+#     r'\bthere\'s no (right|wrong|one|correct) answer\b',
+#     r'\bno right or wrong (here|answer)\b',
     
-    # Equal validity
-    r'\bboth (are|views?|perspectives?|sides?) (are )?(valid|legitimate|understandable)\b',
-    r'\bneither (is|are) (right|wrong)\b',
-    r'\beveryone\'s entitled to\b',
-    r'\bwho\'s to say\b',
-    r'\bwho am i to (judge|say)\b',
+#     # Equal validity
+#     r'\bboth (are|views?|perspectives?|sides?) (are )?(valid|legitimate|understandable)\b',
+#     r'\bneither (is|are) (right|wrong)\b',
+#     r'\beveryone\'s entitled to\b',
+#     r'\bwho\'s to say\b',
+#     r'\bwho am i to (judge|say)\b',
     
-    # Refusing to evaluate
-    r'\bi (can\'t|cannot|won\'t) (tell you what|say what|judge)\b',
-    r'\bnot (for me|my place) to (say|judge|decide)\b',
-    r'\bi\'m not (going to|gonna) (tell you|judge|say)\b',
-]
+#     # Refusing to evaluate
+#     r'\bi (can\'t|cannot|won\'t) (tell you what|say what|judge)\b',
+#     r'\bnot (for me|my place) to (say|judge|decide)\b',
+#     r'\bi\'m not (going to|gonna) (tell you|judge|say)\b',
+# ]
 
-# Moderate multiplist indicators - softer versions
-MULTIPLIST_MODERATE_PATTERNS = [
-    r'\bit (really )?depends\b',
-    r'\bthat\'s (just )?your (call|decision|choice)\b',
-    r'\byou (have to|need to|gotta) decide\b',
-    r'\bup to you\b',
-    r'\byour (call|choice|decision)\b',
-    r'\bpersonal (choice|preference|decision)\b',
-    r'\bdo what (feels|seems) right (to|for) you\b',
-    r'\bwhatever (you think|works for you|feels right)\b',
-    r'\bjust my (opinion|two cents|perspective)\b',
-    r'\beveryone is different\b',
-    r'\bdifferent things work for different\b',
-]
+# # Moderate multiplist indicators - softer versions
+# MULTIPLIST_MODERATE_PATTERNS = [
+#     r'\bit (really )?depends\b',
+#     r'\bthat\'s (just )?your (call|decision|choice)\b',
+#     r'\byou (have to|need to|gotta) decide\b',
+#     r'\bup to you\b',
+#     r'\byour (call|choice|decision)\b',
+#     r'\bpersonal (choice|preference|decision)\b',
+#     r'\bdo what (feels|seems) right (to|for) you\b',
+#     r'\bwhatever (you think|works for you|feels right)\b',
+#     r'\bjust my (opinion|two cents|perspective)\b',
+#     r'\beveryone is different\b',
+#     r'\bdifferent things work for different\b',
+# ]
 
-# Anti-patterns: These suggest evaluativist or absolutist, NOT multiplist
-ANTI_MULTIPLIST_PATTERNS = [
-    # Evaluativist markers (weighing evidence)
-    r'\bthe (better|best|stronger) (option|choice|argument)\b',
-    r'\bon balance\b',
-    r'\bweighing\b',
-    r'\bmore (likely|reasonable|justified)\b',
-    r'\bthe evidence (suggests|shows)\b',
+# # Anti-patterns: These suggest evaluativist or absolutist, NOT multiplist
+# ANTI_MULTIPLIST_PATTERNS = [
+#     # Evaluativist markers (weighing evidence)
+#     r'\bthe (better|best|stronger) (option|choice|argument)\b',
+#     r'\bon balance\b',
+#     r'\bweighing\b',
+#     r'\bmore (likely|reasonable|justified)\b',
+#     r'\bthe evidence (suggests|shows)\b',
     
-    # Absolutist markers (certainty)
-    r'\byou (should|must|need to) (definitely|absolutely)\b',
-    r'\bthere\'s no (question|doubt)\b',
-    r'\bobviously\b',
-    r'\bclearly (you should|the answer)\b',
-    r'\b(dump|leave|divorce) (him|her|them)\b',  # Strong directive advice
-    r'\bred flag\b',  # Definitive judgment
-    r'\bdeal ?breaker\b',
-]
+#     # Absolutist markers (certainty)
+#     r'\byou (should|must|need to) (definitely|absolutely)\b',
+#     r'\bthere\'s no (question|doubt)\b',
+#     r'\bobviously\b',
+#     r'\bclearly (you should|the answer)\b',
+#     r'\b(dump|leave|divorce) (him|her|them)\b',  # Strong directive advice
+#     r'\bred flag\b',  # Definitive judgment
+#     r'\bdeal ?breaker\b',
+# ]
 
 
-def score_multiplist_indicators(text):
-    """
-    Score a text for multiplist indicators.
+# def score_multiplist_indicators(text):
+#     """
+#     Score a text for multiplist indicators.
     
-    Returns:
-        dict with:
-        - strong_matches: list of strong pattern matches
-        - moderate_matches: list of moderate pattern matches
-        - anti_matches: list of anti-multiplist pattern matches
-        - multiplist_score: overall score (higher = more multiplist)
-    """
-    text_lower = text.lower()
+#     Returns:
+#         dict with:
+#         - strong_matches: list of strong pattern matches
+#         - moderate_matches: list of moderate pattern matches
+#         - anti_matches: list of anti-multiplist pattern matches
+#         - multiplist_score: overall score (higher = more multiplist)
+#     """
+#     text_lower = text.lower()
     
-    strong_matches = []
-    for pattern in MULTIPLIST_STRONG_PATTERNS:
-        matches = re.findall(pattern, text_lower)
-        if matches:
-            strong_matches.extend(matches if isinstance(matches[0], str) else [m[0] for m in matches])
+#     strong_matches = []
+#     for pattern in MULTIPLIST_STRONG_PATTERNS:
+#         matches = re.findall(pattern, text_lower)
+#         if matches:
+#             strong_matches.extend(matches if isinstance(matches[0], str) else [m[0] for m in matches])
     
-    moderate_matches = []
-    for pattern in MULTIPLIST_MODERATE_PATTERNS:
-        matches = re.findall(pattern, text_lower)
-        if matches:
-            moderate_matches.extend(matches if isinstance(matches[0], str) else [m[0] for m in matches])
+#     moderate_matches = []
+#     for pattern in MULTIPLIST_MODERATE_PATTERNS:
+#         matches = re.findall(pattern, text_lower)
+#         if matches:
+#             moderate_matches.extend(matches if isinstance(matches[0], str) else [m[0] for m in matches])
     
-    anti_matches = []
-    for pattern in ANTI_MULTIPLIST_PATTERNS:
-        matches = re.findall(pattern, text_lower)
-        if matches:
-            anti_matches.extend(matches if isinstance(matches[0], str) else [m[0] for m in matches])
+#     anti_matches = []
+#     for pattern in ANTI_MULTIPLIST_PATTERNS:
+#         matches = re.findall(pattern, text_lower)
+#         if matches:
+#             anti_matches.extend(matches if isinstance(matches[0], str) else [m[0] for m in matches])
     
-    # Calculate score: strong patterns worth more, anti-patterns subtract
-    score = (len(strong_matches) * 3) + (len(moderate_matches) * 1) - (len(anti_matches) * 2)
+#     # Calculate score: strong patterns worth more, anti-patterns subtract
+#     score = (len(strong_matches) * 3) + (len(moderate_matches) * 1) - (len(anti_matches) * 2)
     
-    return {
-        'strong_matches': strong_matches,
-        'moderate_matches': moderate_matches,
-        'anti_matches': anti_matches,
-        'multiplist_score': score,
-        'n_strong': len(strong_matches),
-        'n_moderate': len(moderate_matches),
-        'n_anti': len(anti_matches),
-    }
+#     return {
+#         'strong_matches': strong_matches,
+#         'moderate_matches': moderate_matches,
+#         'anti_matches': anti_matches,
+#         'multiplist_score': score,
+#         'n_strong': len(strong_matches),
+#         'n_moderate': len(moderate_matches),
+#         'n_anti': len(anti_matches),
+#     }
 
 
 # ============================================================================
@@ -263,19 +263,20 @@ def filter_for_multiplist_labeling(entry, min_words=100, max_words=2000):
     if text.count('http') > 2 and word_count < 100:
         return False, "mostly_links", None
     
-    # Score for multiplist indicators
-    score_data = score_multiplist_indicators(text)
+    # # Score for multiplist indicators
+    # score_data = score_multiplist_indicators(text)
     
-    # We want comments with some multiplist signal
-    # At least one strong match, OR multiple moderate matches
-    if score_data['n_strong'] >= 1:
-        return True, "strong_multiplist", score_data
-    elif score_data['n_moderate'] >= 2 and score_data['n_anti'] == 0:
-        return True, "moderate_multiplist", score_data
-    elif score_data['multiplist_score'] >= 2:
-        return True, "positive_score", score_data
-    else:
-        return False, "no_multiplist_signal", score_data
+    # # We want comments with some multiplist signal
+    # # At least one strong match, OR multiple moderate matches
+    # if score_data['n_strong'] >= 1:
+    #     return True, "strong_multiplist", score_data
+    # elif score_data['n_moderate'] >= 2 and score_data['n_anti'] == 0:
+    #     return True, "moderate_multiplist", score_data
+    # elif score_data['multiplist_score'] >= 2:
+    #     return True, "positive_score", score_data
+    # else:
+    #     return False, "no_multiplist_signal", score_data
+    return True
 
 
 def extract_multiplist_candidates(ds, dataset_name='relationship_advice', max_samples=10000, progress=True):
@@ -430,67 +431,67 @@ def save_labeling_sample(sample, dataset_name='relationship_advice', output_path
 # STEP 5: Preview examples
 # ============================================================================
 
-def preview_examples(sample, n_examples=5):
-    """Preview examples by multiplist score tier."""
+# def preview_examples(sample, n_examples=5):
+#     """Preview examples by multiplist score tier."""
     
-    print("\n" + "="*60)
-    print("EXAMPLE SAMPLES FOR REVIEW")
-    print("="*60)
+#     print("\n" + "="*60)
+#     print("EXAMPLE SAMPLES FOR REVIEW")
+#     print("="*60)
     
-    # Sort by score
-    sorted_sample = sorted(sample, key=lambda x: x['multiplist_score'], reverse=True)
+#     # Sort by score
+#     sorted_sample = sorted(sample, key=lambda x: x['multiplist_score'], reverse=True)
     
-    # High scorers
-    print("\n--- HIGH MULTIPLIST SCORE (top examples) ---")
-    for i, s in enumerate(sorted_sample[:n_examples]):
-        print(f"\n[Example {i+1}] Score: {s['multiplist_score']} | {s['word_count']} words")
-        print(f"Strong matches: {s['strong_matches']}")
-        print(f"Moderate matches: {s['moderate_matches']}")
-        print("-" * 50)
-        preview = s['text'][:500] + "..." if len(s['text']) > 500 else s['text']
-        print(preview)
+#     # High scorers
+#     print("\n--- HIGH MULTIPLIST SCORE (top examples) ---")
+#     for i, s in enumerate(sorted_sample[:n_examples]):
+#         print(f"\n[Example {i+1}] Score: {s['multiplist_score']} | {s['word_count']} words")
+#         print(f"Strong matches: {s['strong_matches']}")
+#         print(f"Moderate matches: {s['moderate_matches']}")
+#         print("-" * 50)
+#         preview = s['text'][:500] + "..." if len(s['text']) > 500 else s['text']
+#         print(preview)
     
-    # Medium scorers
-    mid_start = len(sorted_sample) // 2
-    print("\n--- MEDIUM MULTIPLIST SCORE (middle examples) ---")
-    for i, s in enumerate(sorted_sample[mid_start:mid_start+3]):
-        print(f"\n[Example {i+1}] Score: {s['multiplist_score']} | {s['word_count']} words")
-        print(f"Strong matches: {s['strong_matches']}")
-        print("-" * 50)
-        preview = s['text'][:400] + "..." if len(s['text']) > 400 else s['text']
-        print(preview)
+#     # Medium scorers
+#     mid_start = len(sorted_sample) // 2
+#     print("\n--- MEDIUM MULTIPLIST SCORE (middle examples) ---")
+#     for i, s in enumerate(sorted_sample[mid_start:mid_start+3]):
+#         print(f"\n[Example {i+1}] Score: {s['multiplist_score']} | {s['word_count']} words")
+#         print(f"Strong matches: {s['strong_matches']}")
+#         print("-" * 50)
+#         preview = s['text'][:400] + "..." if len(s['text']) > 400 else s['text']
+#         print(preview)
 
 
 # ============================================================================
 # STEP 6: Analyze potential distribution
 # ============================================================================
 
-def analyze_sample_characteristics(sample):
-    """Analyze characteristics of the sample."""
+# def analyze_sample_characteristics(sample):
+#     """Analyze characteristics of the sample."""
     
-    print("\n" + "="*60)
-    print("SAMPLE CHARACTERISTICS")
-    print("="*60)
+#     print("\n" + "="*60)
+#     print("SAMPLE CHARACTERISTICS")
+#     print("="*60)
     
-    # Pattern frequency
-    all_strong = []
-    all_moderate = []
-    for s in sample:
-        all_strong.extend(json.loads(s['strong_matches']))
-        all_moderate.extend(json.loads(s['moderate_matches']))
+#     # Pattern frequency
+#     all_strong = []
+#     all_moderate = []
+#     for s in sample:
+#         all_strong.extend(json.loads(s['strong_matches']))
+#         all_moderate.extend(json.loads(s['moderate_matches']))
     
-    print("\nMost common strong multiplist patterns:")
-    for pattern, count in Counter(all_strong).most_common(10):
-        print(f"  '{pattern}': {count}")
+#     print("\nMost common strong multiplist patterns:")
+#     for pattern, count in Counter(all_strong).most_common(10):
+#         print(f"  '{pattern}': {count}")
     
-    print("\nMost common moderate multiplist patterns:")
-    for pattern, count in Counter(all_moderate).most_common(10):
-        print(f"  '{pattern}': {count}")
+#     print("\nMost common moderate multiplist patterns:")
+#     for pattern, count in Counter(all_moderate).most_common(10):
+#         print(f"  '{pattern}': {count}")
     
-    print("\n⚠️  NOTE: These are heuristically-selected candidates.")
-    print("    Actual labeling will determine true epistemic stance.")
-    print("    Some may turn out to be evaluativist (reasoning through options)")
-    print("    rather than true multiplist (refusing to evaluate).")
+#     print("\n⚠️  NOTE: These are heuristically-selected candidates.")
+#     print("    Actual labeling will determine true epistemic stance.")
+#     print("    Some may turn out to be evaluativist (reasoning through options)")
+#     print("    rather than true multiplist (refusing to evaluate).")
 
 
 # ============================================================================
@@ -537,11 +538,11 @@ def main(split_name='relationship_advice'):
     # Save sample
     df = save_labeling_sample(sample, dataset_name=split_name)
     
-    # Preview examples
-    preview_examples(sample, n_examples=5)
+    # # Preview examples
+    # preview_examples(sample, n_examples=5)
     
-    # Analyze characteristics
-    analyze_sample_characteristics(sample)
+    # # Analyze characteristics
+    # analyze_sample_characteristics(sample)
     
     print("\n" + "="*60)
     print("NEXT STEPS")

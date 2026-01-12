@@ -50,8 +50,8 @@ Linguistic markers:
 - Binary framing: Right/wrong, true/false, correct/incorrect
 - Appeals to authority as final word: "Science has proven...", "Experts agree..." (without nuance)
 
-Example in CMV context:
-"CMV: Pineapple on pizza is objectively wrong. It's a fact that sweet and savory don't belong together. Anyone who enjoys it simply has bad taste. There's no real argument for it - it's just wrong."
+Example in context:
+"Pineapple on pizza is objectively wrong. It's a fact that sweet and savory don't belong together. Anyone who enjoys it simply has bad taste. There's no real argument for it - it's just wrong."
 
 ---
 
@@ -72,7 +72,7 @@ Linguistic markers:
 - Avoidance of judgment: "I'm not saying one is right", "It depends on the person"
 - Deflection: "That's for each person to decide", "There's no right answer"
 
-Example in CMV context:
+Example in context:
 "I mean, some people like pineapple on pizza and some don't. It's really just a matter of personal taste. Who am I to say what someone else should enjoy? Everyone's entitled to their own preferences. There's no objectively correct answer here."
 
 ---
@@ -96,12 +96,12 @@ Linguistic markers:
 - Metacognitive awareness: "I've reconsidered...", "You've made me think about..."
 - Conditional reasoning: "If we accept X, then...", "Given Y, it follows that..."
 
-Example in CMV context:
+Example in context:
 "I've always disliked pineapple on pizza, but I recognize that's partly cultural conditioning. The argument that sweet-savory combinations are inherently bad doesn't hold up - we enjoy honey-glazed ham and cranberry sauce with turkey. I still prefer pizza without it, but I can see the culinary logic behind it. The stronger argument against it might be textural - the moisture can make the crust soggy."
 
 ---
 
-## Key Distinctions for CMV Data
+## Key Distinctions for Data
 
 **Absolutist vs. Evaluativist**: Both take positions, but:
 - Absolutist: "I'm right, you're wrong, end of discussion"
@@ -110,13 +110,6 @@ Example in CMV context:
 **Multiplist vs. Evaluativist**: Both acknowledge multiple perspectives, but:
 - Multiplist: "All views are equally valid, there's no point comparing"
 - Evaluativist: "Multiple views exist, and here's how I evaluate which is more justified"
-
-**Delta-awarded responses**: Responses that earned a delta (Δ) on CMV successfully changed someone's mind. These are often (but not always) evaluativist - they engaged with the OP's reasoning in a way that was persuasive.
-
-**Original posts (OPs)**: These state the view to be changed. They may be:
-- Absolutist: Presenting their view as obvious truth
-- Evaluativist: Explaining their reasoning and inviting challenge
-- Rarely multiplist (since they're asking for their view to be changed)
 
 ## Labeling Instructions
 
@@ -134,11 +127,9 @@ Consider:
 - What would it take to change their mind?
 """
 
-LABELING_TEMPLATE = """Please analyze the following ChangeMyView post/response and classify its epistemic stance.
+LABELING_TEMPLATE = """Please analyze the following post and classify its epistemic stance.
 
 ## Context
-- Sample Type: {sample_type}
-- Delta Awarded: {is_delta} {delta_note}
 - Word Count: {word_count}
 
 ## Text to Analyze
@@ -172,7 +163,7 @@ Remember:
 - Base classification on HOW they argue, not WHAT they argue
 - A person can have a strong opinion and still be evaluativist (if they reason well and acknowledge uncertainty)
 - A person can seem open-minded but still be multiplist (if they refuse to evaluate competing claims)
-- Delta-awarded responses suggest successful persuasion but aren't automatically evaluativist"""
+"""
 
 
 # ============================================================================
@@ -182,23 +173,7 @@ Remember:
 def create_labeling_message(sample_data):
     """Create the labeling prompt for a single sample."""
     
-    sample_type_descriptions = {
-        'original_post': 'Original post stating a view to be changed (OP)',
-        'delta_response': 'Response that earned a delta (changed OP\'s mind)',
-        'response': 'Response attempting to change OP\'s view',
-        'argument_with_conclusion': 'Argument extracted from CMV with its conclusion',
-    }
-    
-    is_delta = sample_data.get('is_delta_awarded', False)
-    delta_note = "(This response successfully changed someone's mind)" if is_delta else ""
-    
     return LABELING_TEMPLATE.format(
-        sample_type=sample_type_descriptions.get(
-            sample_data.get('sample_type', 'unknown'), 
-            sample_data.get('sample_type', 'unknown')
-        ),
-        is_delta="Yes" if is_delta else "No",
-        delta_note=delta_note,
         word_count=sample_data.get('word_count', len(sample_data['text'].split())),
         text=sample_data['text']
     )
@@ -319,8 +294,7 @@ def save_results(results, samples, output_path):
         })
     
     # Save to CSV
-    df_columns = ['sample_id', 'conversation_id', 'sample_type', 'is_delta_awarded',
-                  'word_count', 'epistemic_stance', 'stance_confidence',
+    df_columns = ['sample_id', 'word_count', 'epistemic_stance', 'stance_confidence',
                   'reasoning_quality', 'engagement_with_alternatives',
                   'stance_justification', 'stance_markers', 'text']
     
@@ -344,37 +318,6 @@ def save_results(results, samples, output_path):
     print("\nStance distribution:")
     for stance, count in sorted(stance_counts.items()):
         print(f"  {stance}: {count} ({100*count/len(merged):.1f}%)")
-    
-    # Cross-tabulate with sample type
-    print("\nStance by sample type:")
-    type_stance = {}
-    for m in merged:
-        stype = m.get('sample_type', 'unknown')
-        stance = m.get('epistemic_stance', 'unknown')
-        if stype not in type_stance:
-            type_stance[stype] = {}
-        type_stance[stype][stance] = type_stance[stype].get(stance, 0) + 1
-    
-    for stype, stances in type_stance.items():
-        print(f"\n  {stype}:")
-        for stance, count in sorted(stances.items()):
-            print(f"    {stance}: {count}")
-    
-    # Delta vs non-delta comparison
-    delta_stances = [m['epistemic_stance'] for m in merged if m.get('is_delta_awarded')]
-    non_delta_stances = [m['epistemic_stance'] for m in merged 
-                         if not m.get('is_delta_awarded') and m.get('sample_type') != 'original_post']
-    
-    if delta_stances and non_delta_stances:
-        print("\n\nDelta-awarded vs regular responses:")
-        print("  Delta-awarded:")
-        for stance in ['absolutist', 'multiplist', 'evaluativist']:
-            count = delta_stances.count(stance)
-            print(f"    {stance}: {count} ({100*count/len(delta_stances):.1f}%)")
-        print("  Regular responses:")
-        for stance in ['absolutist', 'multiplist', 'evaluativist']:
-            count = non_delta_stances.count(stance)
-            print(f"    {stance}: {count} ({100*count/len(non_delta_stances):.1f}%)")
 
 
 # ============================================================================
@@ -394,10 +337,6 @@ def main():
     samples = df.to_dict('records')
     
     print(f"Loaded {len(samples)} samples for labeling")
-    
-    # Show distribution
-    print("\nSample distribution:")
-    print(df['sample_type'].value_counts())
     
     # Start with pilot batch
     pilot_size = 50
@@ -419,23 +358,20 @@ def main():
     )
     
     # Save pilot results
-    save_results(results, pilot_samples, "cmv_pilot_labeled.csv")
+    save_results(results, pilot_samples, "pilot_labeled.csv")
     
     print("\n" + "="*60)
     print("PILOT COMPLETE")
     print("="*60)
     print("""
-    Review cmv_pilot_labeled.csv to validate the labeling approach.
+    Review pilot_labeled.csv to validate the labeling approach.
     
     Check:
     1. Are the stance classifications reasonable?
-    2. Do delta-awarded responses tend to be evaluativist?
     3. Do the justifications cite appropriate evidence?
     4. Is the multiplist category being captured?
     
     Key questions:
-    - Are OPs more likely to be absolutist (rigid) or evaluativist (open)?
-    - Are successful (delta) responses more evaluativist than unsuccessful ones?
     - What linguistic patterns distinguish the stances?
     
     Once validated, scale to full batch by modifying pilot_size.

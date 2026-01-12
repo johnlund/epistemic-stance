@@ -19,12 +19,12 @@ Requirements:
     pip install datasets pandas tqdm
 
 Usage:
-    python explore_relationship_advice.py [split_name]
+    python explore_reddit_ds.py [split_name]
     
     Examples:
-    python explore_relationship_advice.py relationship_advice
-    python explore_relationship_advice.py changemyview
-    python explore_relationship_advice.py AskHistorians
+    python explore_reddit_ds.py relationship_advice
+    python explore_reddit_ds.py changemyview
+    python explore_reddit_ds.py AskHistorians
 """
 
 import pandas as pd

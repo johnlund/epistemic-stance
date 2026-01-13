@@ -1,0 +1,25 @@
+# Epistemic Stance Classifier Dependencies
+# =========================================
+
+# Core ML
+torch>=2.0.0
+transformers>=4.35.0
+datasets>=2.14.0
+
+# Data processing
+pandas>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+
+# Progress bars and logging
+tqdm>=4.65.0
+
+# Optional: for faster tokenization
+tokenizers>=0.14.0
+
+# Optional: for experiment tracking (uncomment if using)
+# wandb>=0.15.0
+# tensorboard>=2.14.0
+
+# Optional: for hyperparameter tuning (uncomment if using)
+# optuna>=3.3.0

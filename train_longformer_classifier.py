@@ -758,6 +758,7 @@ def train(
     if config.apply_temperature_scaling:
         logger.info("\nApplying temperature scaling calibration...")
         temperature_scaler = TemperatureScaling()
+        temperature_scaler.to(device)  # Move to device to match model and logits
         optimal_temp = temperature_scaler.calibrate(model, val_loader, device)
         logger.info(f"Optimal temperature: {optimal_temp:.4f}")
         

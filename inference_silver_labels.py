@@ -24,7 +24,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from transformers import AutoTokenizer, LongformerForSequenceClassification
 
 # Setup logging
 logging.basicConfig(
@@ -100,12 +100,12 @@ class TemperatureScaling(torch.nn.Module):
 def load_model(
     model_path: str,
     device: torch.device
-) -> Tuple[AutoModelForSequenceClassification, AutoTokenizer, Optional[TemperatureScaling]]:
+) -> Tuple[LongformerForSequenceClassification, AutoTokenizer, Optional[TemperatureScaling]]:
     """Load trained model, tokenizer, and temperature scaler."""
     
     logger.info(f"Loading model from {model_path}")
     
-    model = AutoModelForSequenceClassification.from_pretrained(model_path)
+    model = LongformerForSequenceClassification.from_pretrained(model_path)
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     model.to(device)
     model.eval()

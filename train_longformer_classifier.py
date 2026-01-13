@@ -41,7 +41,7 @@ from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 from tqdm import tqdm
 from transformers import (
     AutoTokenizer,
-    AutoModelForSequenceClassification,
+    LongformerForSequenceClassification,
     get_linear_schedule_with_warmup,
 )
 
@@ -587,7 +587,7 @@ def train(
     # Load tokenizer and model
     logger.info(f"Loading model: {config.model_name}")
     tokenizer = AutoTokenizer.from_pretrained(config.model_name)
-    model = AutoModelForSequenceClassification.from_pretrained(
+    model = LongformerForSequenceClassification.from_pretrained(
         config.model_name,
         num_labels=config.num_labels,
         id2label=config.id2label,
@@ -750,7 +750,7 @@ def train(
     
     # Load best model for final evaluation
     logger.info("\nLoading best model for final evaluation...")
-    model = AutoModelForSequenceClassification.from_pretrained(best_model_path)
+    model = LongformerForSequenceClassification.from_pretrained(best_model_path)
     model.to(device)
     
     # Temperature scaling calibration
@@ -918,7 +918,7 @@ A Longformer-based classifier for detecting epistemic stances (absolutist, evalu
 
 ## Model Details
 
-- **Model Type**: AutoModelForSequenceClassification (Longformer architecture)
+- **Model Type**: LongformerForSequenceClassification (Longformer architecture)
 - **Base Model**: {config.model_name}
 - **Max Sequence Length**: {config.max_length}
 - **Number of Labels**: {config.num_labels}
@@ -946,12 +946,12 @@ A Longformer-based classifier for detecting epistemic stances (absolutist, evalu
 ## Usage
 
 ```python
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from transformers import AutoTokenizer, LongformerForSequenceClassification
 import torch
 
 model_name = "{hub_model_id}"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForSequenceClassification.from_pretrained(model_name)
+model = LongformerForSequenceClassification.from_pretrained(model_name)
 
 text = "Your text here..."
 inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length={config.max_length})

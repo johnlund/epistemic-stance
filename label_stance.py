@@ -472,6 +472,98 @@ def save_results(results, samples, output_path):
         print(f"  {stance}: {count} ({100*count/len(merged):.1f}%)")
 
 
+def relabel_errors(input_file, output_file=None, model="claude-sonnet-4-20250514", delay=0.5):
+    """
+    Re-label rows that have 'error' as their epistemic_stance.
+    
+    Args:
+        input_file: Path to CSV file with some error rows
+        output_file: Path to save updated CSV (defaults to overwriting input_file)
+        model: Claude model to use
+        delay: Delay between API calls
+    """
+    import pandas as pd
+    
+    # Initialize client
+    client = Anthropic()
+    
+    # Load the CSV
+    print(f"Loading {input_file}...")
+    df = pd.read_csv(input_file)
+    
+    # Check if file has epistemic_stance column
+    if 'epistemic_stance' not in df.columns:
+        print("Error: File does not have 'epistemic_stance' column. Cannot identify error rows.")
+        return
+    
+    # Filter for error rows
+    error_mask = df['epistemic_stance'].str.lower() == 'error'
+    error_rows = df[error_mask]
+    
+    if len(error_rows) == 0:
+        print("No error rows found in the file.")
+        return
+    
+    print(f"\nFound {len(error_rows)} rows with errors to re-label")
+    
+    # Convert to list of dicts for labeling
+    error_samples = error_rows.to_dict('records')
+    
+    # Re-label the error rows
+    print(f"\nRe-labeling {len(error_samples)} error rows...")
+    
+    def progress(current, total, result):
+        stance = result.get('stance', 'unknown')
+        conf = result.get('confidence', 'unknown')
+        print(f"  [{current}/{total}] {result['sample_id'][:20]}...: {stance} ({conf})")
+    
+    results = label_batch(
+        client,
+        error_samples,
+        model=model,
+        delay_between_calls=delay,
+        progress_callback=progress
+    )
+    
+    # Create lookup for new results
+    results_lookup = {r['sample_id']: r for r in results}
+    
+    # Update the dataframe with new labels
+    for idx in error_rows.index:
+        sample_id = df.loc[idx, 'sample_id']
+        result = results_lookup.get(sample_id, {})
+        
+        if result:
+            df.loc[idx, 'epistemic_stance'] = result.get('stance', 'error')
+            df.loc[idx, 'stance_confidence'] = result.get('confidence', '')
+            df.loc[idx, 'stance_justification'] = result.get('justification', '')
+            df.loc[idx, 'stance_markers'] = json.dumps(result.get('key_markers', []))
+            df.loc[idx, 'reasoning_quality'] = result.get('reasoning_quality', '')
+            df.loc[idx, 'engagement_with_alternatives'] = result.get('engagement_with_alternatives', '')
+    
+    # Save updated dataframe
+    output_path = output_file if output_file else input_file
+    df.to_csv(output_path, index=False)
+    
+    print(f"\n✅ Updated {output_path} with {len(error_samples)} re-labeled rows")
+    
+    # Print updated distribution
+    print("\n" + "="*60)
+    print("UPDATED STANCE DISTRIBUTION")
+    print("="*60)
+    
+    stance_counts = df['epistemic_stance'].value_counts().to_dict()
+    total = len(df)
+    
+    print("\nStance distribution:")
+    for stance, count in sorted(stance_counts.items()):
+        print(f"  {stance}: {count} ({100*count/total:.1f}%)")
+    
+    remaining_errors = (df['epistemic_stance'].str.lower() == 'error').sum()
+    if remaining_errors > 0:
+        print(f"\n⚠️  Warning: {remaining_errors} rows still have 'error' status")
+
+
 # ============================================================================
 # MAIN EXECUTION
 # ============================================================================
@@ -505,8 +597,8 @@ Examples:
     parser.add_argument(
         '--pilot-size',
         type=int,
-        default=50,
-        help='Number of samples to label in pilot batch (default: 50)'
+        default=25,
+        help='Number of samples to label in pilot batch (default: 25)'
     )
     parser.add_argument(
         '--model',
@@ -519,6 +611,11 @@ Examples:
         type=float,
         default=0.5,
         help='Delay between API calls in seconds (default: 0.5)'
+    )
+    parser.add_argument(
+        '--relabel-errors',
+        action='store_true',
+        help='Re-label only rows that have "error" as their epistemic_stance'
     )
     
     args = parser.parse_args()
@@ -541,6 +638,16 @@ Examples:
         output_path = input_path.parent / f"{stem}_labeled.csv"
     else:
         output_path = Path(args.output)
+    
+    # Check if we're re-labeling errors
+    if args.relabel_errors:
+        relabel_errors(
+            args.input_file,
+            output_file=str(output_path) if args.output else None,
+            model=args.model,
+            delay=args.delay
+        )
+        return
     
     # Initialize client
     client = Anthropic()

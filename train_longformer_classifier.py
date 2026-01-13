@@ -45,6 +45,13 @@ from transformers import (
     get_linear_schedule_with_warmup,
 )
 
+# Optional wandb import
+try:
+    import wandb
+    WANDB_AVAILABLE = True
+except ImportError:
+    WANDB_AVAILABLE = False
+
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
@@ -105,6 +112,11 @@ class Config:
     
     # Calibration
     apply_temperature_scaling: bool = True
+    
+    # Logging
+    use_wandb: bool = False
+    wandb_project: str = "epistemic-stance-classifier"
+    wandb_run_name: Optional[str] = None
     
     # Paths
     output_dir: str = "./output"
@@ -465,6 +477,33 @@ def train(
     output_dir = output_dir or config.output_dir
     os.makedirs(output_dir, exist_ok=True)
     
+    # Initialize wandb if enabled
+    if config.use_wandb and WANDB_AVAILABLE:
+        wandb.init(
+            project=config.wandb_project,
+            name=config.wandb_run_name or f"longformer-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
+            config={
+                'model_name': config.model_name,
+                'max_length': config.max_length,
+                'batch_size': config.batch_size,
+                'gradient_accumulation_steps': config.gradient_accumulation_steps,
+                'effective_batch_size': config.batch_size * config.gradient_accumulation_steps,
+                'learning_rate': config.learning_rate,
+                'weight_decay': config.weight_decay,
+                'num_epochs': config.num_epochs,
+                'warmup_ratio': config.warmup_ratio,
+                'use_focal_loss': config.use_focal_loss,
+                'focal_gamma': config.focal_gamma,
+                'use_class_weights': config.use_class_weights,
+                'apply_temperature_scaling': config.apply_temperature_scaling,
+                'data_path': data_path,
+            },
+            tags=['longformer', 'epistemic-stance', 'classification']
+        )
+        logger.info("Wandb initialized")
+    elif config.use_wandb and not WANDB_AVAILABLE:
+        logger.warning("wandb requested but not available. Continuing without wandb logging.")
+    
     # Setup device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logger.info(f"Using device: {device}")
@@ -481,7 +520,15 @@ def train(
     df['label_id'] = df['epistemic_stance'].map(config.label2id)
     
     logger.info(f"Dataset size: {len(df)}")
-    logger.info(f"Label distribution:\n{df['epistemic_stance'].value_counts()}")
+    label_dist = df['epistemic_stance'].value_counts().to_dict()
+    logger.info(f"Label distribution:\n{label_dist}")
+    
+    # Log dataset info to wandb
+    if config.use_wandb and WANDB_AVAILABLE:
+        wandb.config.update({
+            'dataset_size': len(df),
+            'label_distribution': label_dist
+        })
     
     # Compute class weights
     if config.use_class_weights:
@@ -504,6 +551,14 @@ def train(
     )
     
     logger.info(f"Train: {len(train_df)}, Val: {len(val_df)}, Test: {len(test_df)}")
+    
+    # Log split sizes to wandb
+    if config.use_wandb and WANDB_AVAILABLE:
+        wandb.config.update({
+            'train_size': len(train_df),
+            'val_size': len(val_df),
+            'test_size': len(test_df)
+        })
     
     # Save splits for reproducibility
     train_df.to_csv(os.path.join(output_dir, 'train_split.csv'), index=False)
@@ -633,6 +688,20 @@ def train(
         }
         training_history.append(history_entry)
         
+        # Log to wandb
+        if config.use_wandb and WANDB_AVAILABLE:
+            log_dict = {
+                'epoch': epoch + 1,
+                'train/loss': train_loss,
+            }
+            # Add all validation metrics with val/ prefix
+            for key, value in val_metrics.items():
+                if isinstance(value, float):
+                    log_dict[f'val/{key}'] = value
+                else:
+                    log_dict[f'val/{key}'] = value
+            wandb.log(log_dict, step=epoch + 1)
+        
         # Check if best model
         current_metric = val_metrics[config.metric_for_best_model]
         if current_metric > best_metric:
@@ -644,6 +713,12 @@ def train(
             model.save_pretrained(best_model_path)
             tokenizer.save_pretrained(best_model_path)
             logger.info(f"New best model saved! {config.metric_for_best_model}: {best_metric:.4f}")
+            
+            # Log best metric to wandb
+            if config.use_wandb and WANDB_AVAILABLE:
+                wandb.run.summary['best_val_metric'] = best_metric
+                wandb.run.summary['best_epoch'] = best_epoch
+                wandb.log({'best_val_metric': best_metric}, step=epoch + 1)
         
         # Save checkpoint
         checkpoint_path = os.path.join(output_dir, f'checkpoint-epoch-{epoch + 1}')
@@ -669,6 +744,11 @@ def train(
         
         # Save temperature
         torch.save(temperature_scaler.state_dict(), os.path.join(best_model_path, 'temperature_scaler.pt'))
+        
+        # Log temperature to wandb
+        if config.use_wandb and WANDB_AVAILABLE:
+            wandb.config.update({'optimal_temperature': optimal_temp})
+            wandb.run.summary['optimal_temperature'] = optimal_temp
     
     # Final test evaluation
     logger.info("\nFinal evaluation on test set:")
@@ -682,11 +762,34 @@ def train(
         else:
             logger.info(f"  {key}: {value}")
     
+    # Log test metrics to wandb
+    if config.use_wandb and WANDB_AVAILABLE:
+        for key, value in test_metrics.items():
+            if isinstance(value, float):
+                wandb.run.summary[f'test/{key}'] = value
+            else:
+                wandb.run.summary[f'test/{key}'] = value
+    
     # Confusion matrix
     cm = confusion_matrix(test_labels, test_preds)
     logger.info(f"\nConfusion Matrix:")
     logger.info(f"Labels: {list(config.id2label.values())}")
     logger.info(f"\n{cm}")
+    
+    # Log confusion matrix to wandb
+    if config.use_wandb and WANDB_AVAILABLE:
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+        
+        plt.figure(figsize=(8, 6))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+                    xticklabels=list(config.id2label.values()),
+                    yticklabels=list(config.id2label.values()))
+        plt.xlabel('Predicted')
+        plt.ylabel('Actual')
+        plt.title('Confusion Matrix')
+        wandb.log({'confusion_matrix': wandb.Image(plt)})
+        plt.close()
     
     # Classification report
     logger.info(f"\nClassification Report:")
@@ -729,6 +832,11 @@ def train(
     
     logger.info(f"\nAll results saved to {output_dir}")
     
+    # Finish wandb run
+    if config.use_wandb and WANDB_AVAILABLE:
+        wandb.finish()
+        logger.info("Wandb run completed")
+    
     return best_model_path, test_metrics
 
 
@@ -766,6 +874,14 @@ def main():
     parser.add_argument('--no-calibration', action='store_true',
                         help='Disable temperature scaling')
     
+    # Wandb
+    parser.add_argument('--wandb', action='store_true',
+                        help='Enable wandb logging')
+    parser.add_argument('--wandb-project', type=str, default='epistemic-stance-classifier',
+                        help='Wandb project name')
+    parser.add_argument('--wandb-run-name', type=str, default=None,
+                        help='Wandb run name (default: auto-generated)')
+    
     args = parser.parse_args()
     
     # Create config
@@ -780,6 +896,9 @@ def main():
         focal_gamma=args.focal_gamma,
         use_class_weights=not args.no_class_weights,
         apply_temperature_scaling=not args.no_calibration,
+        use_wandb=args.wandb,
+        wandb_project=args.wandb_project,
+        wandb_run_name=args.wandb_run_name,
         output_dir=args.output_dir
     )
     

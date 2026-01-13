@@ -45,6 +45,13 @@ from transformers import (
     get_linear_schedule_with_warmup,
 )
 
+# Optional HuggingFace Hub import
+try:
+    from huggingface_hub import HfApi, login as hf_login
+    HF_HUB_AVAILABLE = True
+except ImportError:
+    HF_HUB_AVAILABLE = False
+
 # Optional wandb import
 try:
     import wandb
@@ -62,6 +69,12 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+# Log optional dependencies availability
+if not WANDB_AVAILABLE:
+    logger.info("wandb not available. Install with: pip install wandb to enable experiment tracking")
+if not HF_HUB_AVAILABLE:
+    logger.info("huggingface_hub not available. Install with: pip install huggingface_hub to enable model uploads")
 
 
 # ==============================================================================
@@ -117,6 +130,11 @@ class Config:
     use_wandb: bool = False
     wandb_project: str = "epistemic-stance-classifier"
     wandb_run_name: Optional[str] = None
+    
+    # HuggingFace Hub
+    push_to_hub: bool = False
+    hub_model_id: Optional[str] = None
+    hub_organization: Optional[str] = None
     
     # Paths
     output_dir: str = "./output"
@@ -832,6 +850,155 @@ def train(
     
     logger.info(f"\nAll results saved to {output_dir}")
     
+    # Upload to HuggingFace Hub if requested
+    if config.push_to_hub:
+        if not HF_HUB_AVAILABLE:
+            logger.warning("huggingface_hub not available. Install with: pip install huggingface_hub")
+        else:
+            try:
+                hub_model_id = config.hub_model_id
+                if not hub_model_id:
+                    # Generate model ID from organization or username
+                    if config.hub_organization:
+                        hub_model_id = f"{config.hub_organization}/epistemic-stance-longformer"
+                    else:
+                        # Get username from HF token
+                        api = HfApi()
+                        user = api.whoami()
+                        hub_model_id = f"{user['name']}/epistemic-stance-longformer"
+                
+                logger.info(f"\nUploading model to HuggingFace Hub: {hub_model_id}")
+                
+                # Upload model and tokenizer
+                model.push_to_hub(
+                    hub_model_id,
+                    private=False,
+                    commit_message=f"Add epistemic stance classifier - Best {config.metric_for_best_model}: {best_metric:.4f}"
+                )
+                tokenizer.push_to_hub(
+                    hub_model_id,
+                    commit_message="Add tokenizer"
+                )
+                
+                # Upload temperature scaler if available
+                if temperature_scaler:
+                    temp_path = os.path.join(best_model_path, 'temperature_scaler.pt')
+                    if os.path.exists(temp_path):
+                        api = HfApi()
+                        api.upload_file(
+                            path_or_fileobj=temp_path,
+                            path_in_repo="temperature_scaler.pt",
+                            repo_id=hub_model_id,
+                            repo_type="model",
+                            commit_message="Add temperature scaler for calibration"
+                        )
+                
+                # Create model card
+                model_card = f"""---
+license: mit
+tags:
+- epistemic-stance
+- classification
+- longformer
+- nlp
+- social-science
+datasets:
+- custom
+metrics:
+- accuracy
+- f1
+- precision
+- recall
+---
+
+# Epistemic Stance Classifier
+
+A Longformer-based classifier for detecting epistemic stances (absolutist, evaluativist, multiplist) in text.
+
+## Model Details
+
+- **Model Type**: LongformerForSequenceClassification
+- **Base Model**: {config.model_name}
+- **Max Sequence Length**: {config.max_length}
+- **Number of Labels**: {config.num_labels}
+- **Labels**: absolutist, evaluativist, multiplist
+
+## Training Details
+
+- **Best Validation Metric ({config.metric_for_best_model})**: {best_metric:.4f}
+- **Best Epoch**: {best_epoch}
+- **Training Epochs**: {config.num_epochs}
+- **Learning Rate**: {config.learning_rate}
+- **Batch Size**: {config.batch_size}
+- **Gradient Accumulation Steps**: {config.gradient_accumulation_steps}
+- **Focal Loss**: {config.use_focal_loss}
+- **Class Weights**: {config.use_class_weights}
+- **Temperature Scaling**: {config.apply_temperature_scaling}
+
+## Test Set Performance
+
+- **Accuracy**: {test_metrics.get('accuracy', 'N/A'):.4f}
+- **F1 Macro**: {test_metrics.get('f1_macro', 'N/A'):.4f}
+- **F1 Weighted**: {test_metrics.get('f1_weighted', 'N/A'):.4f}
+- **Expected Calibration Error**: {test_metrics.get('ece', 'N/A'):.4f}
+
+## Usage
+
+```python
+from transformers import AutoTokenizer, LongformerForSequenceClassification
+import torch
+
+model_name = "{hub_model_id}"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = LongformerForSequenceClassification.from_pretrained(model_name)
+
+text = "Your text here..."
+inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length={config.max_length})
+
+with torch.no_grad():
+    outputs = model(**inputs)
+    probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
+    predicted_class = torch.argmax(probs, dim=-1).item()
+
+label_map = {{0: "absolutist", 1: "evaluativist", 2: "multiplist"}}
+print(f"Predicted: {{label_map[predicted_class]}}")
+print(f"Confidence: {{probs[0][predicted_class]:.4f}}")
+```
+
+## Citation
+
+If you use this model, please cite:
+
+```bibtex
+@misc{{epistemic-stance-classifier,
+  title={{Epistemic Stance Classifier}},
+  author={{Your Name}},
+  year={{2024}},
+  howpublished={{\\url{{https://huggingface.co/{hub_model_id}}}}}
+}}
+```
+"""
+                
+                # Save and upload model card
+                readme_path = os.path.join(best_model_path, 'README.md')
+                with open(readme_path, 'w') as f:
+                    f.write(model_card)
+                
+                api = HfApi()
+                api.upload_file(
+                    path_or_fileobj=readme_path,
+                    path_in_repo="README.md",
+                    repo_id=hub_model_id,
+                    repo_type="model",
+                    commit_message="Add model card"
+                )
+                
+                logger.info(f"✅ Model successfully uploaded to: https://huggingface.co/{hub_model_id}")
+                
+            except Exception as e:
+                logger.error(f"Failed to upload model to HuggingFace Hub: {e}")
+                logger.info("Model saved locally. You can upload manually later.")
+    
     # Finish wandb run
     if config.use_wandb and WANDB_AVAILABLE:
         wandb.finish()
@@ -882,6 +1049,14 @@ def main():
     parser.add_argument('--wandb-run-name', type=str, default=None,
                         help='Wandb run name (default: auto-generated)')
     
+    # HuggingFace Hub
+    parser.add_argument('--push-to-hub', action='store_true',
+                        help='Upload model to HuggingFace Hub after training')
+    parser.add_argument('--hub-model-id', type=str, default=None,
+                        help='HuggingFace model ID (e.g., username/model-name or org/model-name)')
+    parser.add_argument('--hub-organization', type=str, default=None,
+                        help='HuggingFace organization name (if not using hub-model-id)')
+    
     args = parser.parse_args()
     
     # Create config
@@ -899,6 +1074,9 @@ def main():
         use_wandb=args.wandb,
         wandb_project=args.wandb_project,
         wandb_run_name=args.wandb_run_name,
+        push_to_hub=args.push_to_hub,
+        hub_model_id=args.hub_model_id,
+        hub_organization=args.hub_organization,
         output_dir=args.output_dir
     )
     

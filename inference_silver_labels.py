@@ -3,7 +3,7 @@
 Epistemic Stance Classifier Inference Script
 =============================================
 
-Uses a trained Longformer classifier to generate silver labels
+Uses a trained classifier to generate silver labels
 for a larger dataset, with confidence filtering for quality control.
 
 Author: Claude (Anthropic)
@@ -24,7 +24,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
-from transformers import AutoTokenizer, LongformerForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 # Setup logging
 logging.basicConfig(
@@ -100,12 +100,12 @@ class TemperatureScaling(torch.nn.Module):
 def load_model(
     model_path: str,
     device: torch.device
-) -> Tuple[LongformerForSequenceClassification, AutoTokenizer, Optional[TemperatureScaling]]:
+) -> Tuple[AutoModelForSequenceClassification, AutoTokenizer, Optional[TemperatureScaling]]:
     """Load trained model, tokenizer, and temperature scaler."""
     
     logger.info(f"Loading model from {model_path}")
     
-    model = LongformerForSequenceClassification.from_pretrained(model_path)
+    model = AutoModelForSequenceClassification.from_pretrained(model_path)
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     model.to(device)
     model.eval()

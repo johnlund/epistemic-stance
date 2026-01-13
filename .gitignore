@@ -52,4 +52,4 @@ Thumbs.db
 *.ckpt
 
 # Data files
-*.csv
+# *.csv

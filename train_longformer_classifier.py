@@ -41,9 +41,19 @@ from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 from tqdm import tqdm
 from transformers import (
     AutoTokenizer,
-    LongformerForSequenceClassification,
     get_linear_schedule_with_warmup,
 )
+
+# Check transformers version for Longformer support
+try:
+    from transformers import LongformerForSequenceClassification
+except ImportError:
+    import transformers
+    version = transformers.__version__
+    raise ImportError(
+        f"LongformerForSequenceClassification not available in transformers {version}. "
+        f"Please upgrade transformers: pip install --upgrade transformers>=4.2.0"
+    )
 
 # Optional HuggingFace Hub import
 try:

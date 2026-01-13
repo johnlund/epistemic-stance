@@ -801,18 +801,22 @@ def train(
     
     # Log confusion matrix to wandb
     if config.use_wandb and WANDB_AVAILABLE:
-        import matplotlib.pyplot as plt
-        import seaborn as sns
-        
-        plt.figure(figsize=(8, 6))
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-                    xticklabels=list(config.id2label.values()),
-                    yticklabels=list(config.id2label.values()))
-        plt.xlabel('Predicted')
-        plt.ylabel('Actual')
-        plt.title('Confusion Matrix')
-        wandb.log({'confusion_matrix': wandb.Image(plt)})
-        plt.close()
+        try:
+            import matplotlib.pyplot as plt
+            import seaborn as sns
+            
+            plt.figure(figsize=(8, 6))
+            sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+                        xticklabels=list(config.id2label.values()),
+                        yticklabels=list(config.id2label.values()))
+            plt.xlabel('Predicted')
+            plt.ylabel('Actual')
+            plt.title('Confusion Matrix')
+            wandb.log({'confusion_matrix': wandb.Image(plt)})
+            plt.close()
+        except (ImportError, AttributeError) as e:
+            logger.warning(f"Could not create confusion matrix visualization: {e}")
+            logger.warning("This may be due to NumPy/matplotlib version incompatibility. Continuing without visualization.")
     
     # Classification report
     logger.info(f"\nClassification Report:")

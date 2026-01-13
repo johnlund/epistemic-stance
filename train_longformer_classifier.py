@@ -758,9 +758,12 @@ def train(
     if config.apply_temperature_scaling:
         logger.info("\nApplying temperature scaling calibration...")
         temperature_scaler = TemperatureScaling()
-        temperature_scaler.to(device)  # Move to device to match model and logits
+        # Calibrate on CPU (since calibrate() collects logits on CPU)
         optimal_temp = temperature_scaler.calibrate(model, val_loader, device)
         logger.info(f"Optimal temperature: {optimal_temp:.4f}")
+        
+        # Move to device for evaluation (where logits are on CUDA)
+        temperature_scaler.to(device)
         
         # Save temperature
         torch.save(temperature_scaler.state_dict(), os.path.join(best_model_path, 'temperature_scaler.pt'))

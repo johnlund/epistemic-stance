@@ -281,7 +281,6 @@ def filter_for_labeling(entry, min_words=100, max_words=2000, require_multiplist
     - Are substantive (not too short)
     - Contain reasoning (not just "lol" or "this")
     - Optionally: Show multiplist indicators (if require_multiplist_patterns=True)
-    - Don't have strong absolutist/evaluativist markers
     
     Args:
         entry: Dataset entry

@@ -116,6 +116,7 @@ def load_model(
     if os.path.exists(temp_path):
         temp_scaler = TemperatureScaling()
         temp_scaler.load_state_dict(torch.load(temp_path))
+        temp_scaler.to(device)  # Move to device to match model and logits
         logger.info(f"Loaded temperature scaler (T={temp_scaler.temperature.item():.4f})")
     
     return model, tokenizer, temp_scaler

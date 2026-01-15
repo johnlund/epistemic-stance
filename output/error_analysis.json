@@ -1,0 +1,112 @@
+{
+  "error_analysis": {
+    "overall_accuracy": 0.7651245551601423,
+    "error_type_counts": {
+      "absolutist_as_evaluativist": 31,
+      "evaluativist_as_absolutist": 21,
+      "multiplist_as_evaluativist": 9,
+      "evaluativist_as_multiplist": 4,
+      "multiplist_as_absolutist": 1
+    },
+    "per_class_accuracy": {
+      "evaluativist": {
+        "accuracy": 0.868421052631579,
+        "total": 190,
+        "correct": "165",
+        "errors": "25"
+      },
+      "absolutist": {
+        "accuracy": 0.5921052631578947,
+        "total": 76,
+        "correct": "45",
+        "errors": "31"
+      },
+      "multiplist": {
+        "accuracy": 0.3333333333333333,
+        "total": 15,
+        "correct": "5",
+        "errors": "10"
+      }
+    },
+    "confidence_analysis": {
+      "mean_confidence_errors": 0.7742844366666668,
+      "mean_confidence_correct": 0.857800108744186,
+      "errors_above_0.8": 36,
+      "errors_above_0.9": 16
+    },
+    "word_count_analysis": {
+      "mean_wc_errors": 285.8181818181818,
+      "mean_wc_correct": 286.7953488372093,
+      "errors_above_400_words": 11
+    },
+    "most_common_errors": [
+      [
+        "absolutist_as_evaluativist",
+        31
+      ],
+      [
+        "evaluativist_as_absolutist",
+        21
+      ],
+      [
+        "multiplist_as_evaluativist",
+        9
+      ],
+      [
+        "evaluativist_as_multiplist",
+        4
+      ],
+      [
+        "multiplist_as_absolutist",
+        1
+      ]
+    ]
+  },
+  "linguistic_patterns": {
+    "errors": {
+      "hedging": {
+        "count": 41,
+        "rate": 0.6212121212121212
+      },
+      "certainty": {
+        "count": 28,
+        "rate": 0.42424242424242425
+      },
+      "relativism": {
+        "count": 47,
+        "rate": 0.7121212121212122
+      },
+      "evidence": {
+        "count": 9,
+        "rate": 0.13636363636363635
+      },
+      "counterargument": {
+        "count": 55,
+        "rate": 0.8333333333333334
+      }
+    },
+    "correct": {
+      "hedging": {
+        "count": 138,
+        "rate": 0.641860465116279
+      },
+      "certainty": {
+        "count": 114,
+        "rate": 0.5302325581395348
+      },
+      "relativism": {
+        "count": 159,
+        "rate": 0.7395348837209302
+      },
+      "evidence": {
+        "count": 12,
+        "rate": 0.05581395348837209
+      },
+      "counterargument": {
+        "count": 175,
+        "rate": 0.813953488372093
+      }
+    },
+    "certainty_significant": true
+  }
+}

@@ -309,8 +309,7 @@ def combine_gold_silver(
     gold_path: str,
     silver_path: str,
     output_path: str,
-    gold_weight: float = 2.0,
-    silver_confidence_threshold: float = 0.8
+    gold_weight: float = 2.0
 ) -> pd.DataFrame:
     """
     Combine gold (human/LLM labeled) and silver (classifier labeled) datasets.
@@ -342,8 +341,7 @@ def combine_gold_silver(
     # Load silver data
     silver_df = pd.read_csv(silver_path)
     
-    # Filter by confidence
-    silver_df = silver_df[silver_df['silver_confidence'] >= silver_confidence_threshold].copy()
+    # Standardize column names
     silver_df['data_source'] = 'silver'
     silver_df['label'] = silver_df['silver_label']
     silver_df['sample_weight'] = silver_df['silver_confidence']  # Weight by confidence
@@ -351,15 +349,7 @@ def combine_gold_silver(
     logger.info(f"Silver samples (above {silver_confidence_threshold}): {len(silver_df)}")
     
     # Select common columns
-    common_cols = ['text', 'label', 'data_source', 'sample_weight']
-    
-    # Add sample_id if available
-    if 'sample_id' in gold_df.columns:
-        common_cols.insert(0, 'sample_id')
-    elif 'sample_id' not in silver_df.columns:
-        gold_df['sample_id'] = [f'gold_{i}' for i in range(len(gold_df))]
-        silver_df['sample_id'] = [f'silver_{i}' for i in range(len(silver_df))]
-        common_cols.insert(0, 'sample_id')
+    common_cols = ['sample_id', 'text', 'label', 'data_source', 'sample_weight']
     
     # Combine
     gold_subset = gold_df[common_cols].copy()
@@ -412,8 +402,6 @@ def main():
     combine_parser.add_argument('--output', type=str, required=True, help='Output path')
     combine_parser.add_argument('--gold-weight', type=float, default=2.0, 
                                 help='Weight for gold samples')
-    combine_parser.add_argument('--threshold', type=float, default=0.8,
-                                help='Silver confidence threshold')
     
     args = parser.parse_args()
     

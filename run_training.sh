@@ -47,7 +47,9 @@ echo ""
 # 1. Install dependencies
 echo "[1/5] Installing dependencies..."
 pip install --upgrade pip
-pip install torch transformers datasets accelerate pandas scikit-learn wandb flash-attn huggingface_hub --upgrade
+pip install torch transformers datasets accelerate pandas scikit-learn wandb huggingface_hub --upgrade
+# flash-attn must be installed after torch, with --no-build-isolation
+pip install flash-attn --no-build-isolation
 
 # 2. Login to Hugging Face (for gated model access and upload)
 echo "[2/5] Hugging Face login..."

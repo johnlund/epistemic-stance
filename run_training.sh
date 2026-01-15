@@ -49,12 +49,12 @@ echo "[1/5] Installing dependencies..."
 pip install --upgrade pip
 # Install all packages together with constraints so pip can resolve dependencies properly
 # Pin numpy to <1.25.0 for compatibility with system scipy
-# Pin huggingface_hub to <1.0 for compatibility with transformers 4.57.5
+# Pin huggingface_hub to <1.0 for compatibility with transformers 4.44.2
 pip install \
     "numpy>=1.17.3,<1.25.0" \
     "huggingface_hub<1.0,>=0.34.0" \
     torch \
-    transformers \
+    "transformers==4.44.2" \
     datasets \
     accelerate \
     pandas \

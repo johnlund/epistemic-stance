@@ -60,6 +60,7 @@ pip install \
     pandas \
     scikit-learn \
     wandb \
+    tf-keras \
     --upgrade
 # Using SDPA attention (built into PyTorch) instead of flash-attn to avoid compilation
 

@@ -47,6 +47,8 @@ echo ""
 # 1. Install dependencies
 echo "[1/5] Installing dependencies..."
 pip install --upgrade pip
+# Pin numpy to <2.0 for compatibility with system scipy
+pip install "numpy<2.0.0" --upgrade
 pip install torch transformers datasets accelerate pandas scikit-learn wandb huggingface_hub --upgrade
 # Using SDPA attention (built into PyTorch) instead of flash-attn to avoid compilation
 

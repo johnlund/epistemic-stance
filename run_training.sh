@@ -134,6 +134,9 @@ echo "[5/5] Starting training..."
 echo "This will take approximately 2-3 hours."
 echo ""
 
+# Disable TensorFlow imports since we're only using PyTorch
+export TRANSFORMERS_NO_TF=1
+
 accelerate launch --config_file accelerate_config.yaml finetune_epistemic_stance.py \
     --data final_training_data_balanced.csv \
     --output ./epistemic_stance_model \

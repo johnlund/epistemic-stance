@@ -589,7 +589,7 @@ def main():
         MODEL_ID,
         torch_dtype=torch.bfloat16,
         trust_remote_code=True,
-        attn_implementation="flash_attention_2",
+        attn_implementation="sdpa",  # Using SDPA (built into PyTorch) instead of flash-attn
         device_map="auto",
     )
     

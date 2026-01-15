@@ -1,0 +1,94 @@
+# Axolotl config for fine-tuning Magistral-Small-2509 on epistemic stance classification
+# Based on official Mistral recommendation: https://github.com/axolotl-ai-cloud/axolotl/tree/main/examples/magistral
+
+base_model: mistralai/Magistral-Small-2509
+model_type: AutoModelForCausalLM
+tokenizer_type: AutoTokenizer
+
+# Load in bfloat16 for memory efficiency
+load_in_8bit: false
+load_in_4bit: false
+bf16: auto
+fp16: false
+tf32: true
+
+# Dataset configuration
+datasets:
+  - path: final_training_data_formatted.jsonl
+    type: sharegpt
+    conversation: chatml
+
+# Dataset processing
+dataset_prepared_path: ./prepared_data
+val_set_size: 0.1
+shuffle_merged_datasets: true
+
+# Sequence length
+sequence_len: 2048
+sample_packing: true
+pad_to_sequence_len: true
+
+# Training hyperparameters
+num_epochs: 3
+micro_batch_size: 1
+gradient_accumulation_steps: 16
+learning_rate: 2e-5
+lr_scheduler: cosine
+warmup_ratio: 0.1
+weight_decay: 0.01
+max_grad_norm: 1.0
+
+# Optimizer
+optimizer: adamw_torch_fused
+
+# Memory optimization
+gradient_checkpointing: true
+flash_attention: false  # Use SDPA instead
+
+# LoRA configuration (comment out for full fine-tune)
+# adapter: lora
+# lora_r: 64
+# lora_alpha: 128
+# lora_dropout: 0.05
+# lora_target_modules:
+#   - q_proj
+#   - k_proj
+#   - v_proj
+#   - o_proj
+#   - gate_proj
+#   - up_proj
+#   - down_proj
+# lora_target_linear: true
+
+# For full fine-tune (no LoRA)
+adapter:
+
+# DeepSpeed configuration for multi-GPU
+deepspeed: deepspeed_configs/zero2.json
+
+# Logging
+logging_steps: 10
+eval_steps: 100
+save_steps: 100
+save_total_limit: 3
+
+# Output
+output_dir: ./epistemic_stance_model
+
+# Evaluation
+eval_strategy: steps
+eval_sample_packing: false
+
+# Hub upload (optional)
+# hub_model_id: your-username/epistemic-stance-classifier
+# push_to_hub: true
+
+# W&B logging (optional)
+wandb_project: epistemic-stance
+wandb_run_id:
+wandb_watch:
+wandb_log_model:
+
+# Special tokens handling for Magistral
+special_tokens:
+  pad_token: "</s>"

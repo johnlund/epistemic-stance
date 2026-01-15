@@ -155,6 +155,12 @@ def load_and_prepare_data(
     logger.info(f"Loading data from {data_path}")
     df = pd.read_csv(data_path)
     
+    # Validate required columns
+    required_cols = ['text', 'label']
+    missing = [c for c in required_cols if c not in df.columns]
+    if missing:
+        raise ValueError(f"CSV missing required columns: {missing}")
+    
     # Log distribution
     logger.info(f"Total samples: {len(df)}")
     logger.info(f"Label distribution:\n{df['label'].value_counts()}")
@@ -231,16 +237,24 @@ def tokenize_conversation(example: dict, tokenizer) -> dict:
     tokenized['labels'] = tokenized['input_ids'].copy()
     
     # Mask system and user tokens (only train on assistant response)
-    # Find where assistant response starts
-    assistant_start_tokens = tokenizer.encode("[/INST]", add_special_tokens=False)
+    # Find where assistant response starts by looking for the assistant header in the formatted text
+    # Mistral uses [INST]...[/INST] format, so we find the last [/INST] marker
     input_ids = tokenized['input_ids']
-    
-    # Find last occurrence of assistant marker
     labels = tokenized['labels']
+    
+    # Try multiple possible markers for assistant response start
+    possible_markers = ["[/INST]", "</s>", "<|assistant|>"]
     mask_until = 0
-    for i in range(len(input_ids) - len(assistant_start_tokens)):
-        if input_ids[i:i+len(assistant_start_tokens)] == assistant_start_tokens:
-            mask_until = i + len(assistant_start_tokens)
+    
+    for marker in possible_markers:
+        marker_tokens = tokenizer.encode(marker, add_special_tokens=False)
+        if not marker_tokens:
+            continue
+        for i in range(len(input_ids) - len(marker_tokens)):
+            if input_ids[i:i+len(marker_tokens)] == marker_tokens:
+                mask_until = i + len(marker_tokens)
+        if mask_until > 0:
+            break
     
     # Mask everything before assistant response with -100
     for i in range(mask_until):
@@ -583,7 +597,8 @@ def main():
     model.gradient_checkpointing_enable()
     
     # Calculate effective batch size
-    effective_batch_size = args.batch_size * args.gradient_accumulation * 2  # 2 GPUs
+    num_gpus = max(1, torch.cuda.device_count())
+    effective_batch_size = args.batch_size * args.gradient_accumulation * num_gpus
     logger.info(f"Effective batch size: {effective_batch_size}")
     
     # ==========================================================================
@@ -701,7 +716,7 @@ def main():
         try:
             import wandb
             wandb.log({f"train/{k}": v for k, v in train_result.metrics.items()})
-        except:
+        except Exception:
             pass
     
     # ==========================================================================

@@ -80,8 +80,8 @@ eval_strategy: steps
 eval_sample_packing: false
 
 # Hub upload (optional)
-# hub_model_id: your-username/epistemic-stance-classifier
-# push_to_hub: true
+hub_model_id: johnclund/epistemic-stance-analyzer
+push_to_hub: true
 
 # W&B logging (optional)
 wandb_project: epistemic-stance

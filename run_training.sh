@@ -5,22 +5,64 @@
 
 set -e
 
+# =============================================================================
+# CONFIGURATION - EDIT THESE
+# =============================================================================
+
+# HuggingFace Hub model ID (e.g., "username/epistemic-stance-classifier")
+# Leave empty to skip pushing to Hub
+HUB_MODEL_ID="${HUB_MODEL_ID:-}"
+
+# Make the Hub repo private? (set to "true" or "false")
+HUB_PRIVATE="${HUB_PRIVATE:-false}"
+
+# W&B project name
+WANDB_PROJECT="${WANDB_PROJECT:-epistemic-stance}"
+
+# Training parameters
+EPOCHS="${EPOCHS:-3}"
+BATCH_SIZE="${BATCH_SIZE:-2}"
+GRADIENT_ACCUMULATION="${GRADIENT_ACCUMULATION:-8}"
+LEARNING_RATE="${LEARNING_RATE:-2e-5}"
+
+# =============================================================================
+# SETUP
+# =============================================================================
+
 echo "=============================================="
 echo "Epistemic Stance Classifier - Full Fine-tune"
 echo "Model: Magistral-Small-2509 (24B)"
 echo "Hardware: 2x B200 (360 GB VRAM)"
 echo "=============================================="
+echo ""
+echo "Configuration:"
+echo "  Epochs: $EPOCHS"
+echo "  Batch size: $BATCH_SIZE"
+echo "  Gradient accumulation: $GRADIENT_ACCUMULATION"
+echo "  Learning rate: $LEARNING_RATE"
+echo "  Hub model ID: ${HUB_MODEL_ID:-'(not pushing to Hub)'}"
+echo "  W&B project: ${WANDB_API_KEY:+$WANDB_PROJECT}${WANDB_API_KEY:-'(disabled)'}"
+echo ""
 
 # 1. Install dependencies
 echo "[1/5] Installing dependencies..."
 pip install --upgrade pip
-pip install torch transformers datasets accelerate pandas scikit-learn wandb flash-attn --upgrade
+pip install torch transformers datasets accelerate pandas scikit-learn wandb flash-attn huggingface_hub --upgrade
 
-# 2. Login to Hugging Face (for gated model access)
+# 2. Login to Hugging Face (for gated model access and upload)
 echo "[2/5] Hugging Face login..."
+if [ -n "$HF_TOKEN" ]; then
+    huggingface-cli login --token $HF_TOKEN
+    echo "HuggingFace authenticated."
+else
+    echo "WARNING: No HF_TOKEN found. You may not be able to access gated models."
+    echo "Set HF_TOKEN environment variable if you encounter access issues."
+fi
+
+echo ""
 echo "Make sure you've accepted the model license at:"
 echo "https://huggingface.co/mistralai/Magistral-Small-2509"
-huggingface-cli login --token $HF_TOKEN
+echo ""
 
 # 3. Setup accelerate config for 2 GPUs
 echo "[3/5] Configuring accelerate for 2x GPU..."
@@ -43,16 +85,32 @@ use_cpu: false
 EOF
 
 # 4. Optional: Setup W&B
-echo "[4/5] Setting up Weights & Biases (optional)..."
+echo "[4/5] Setting up Weights & Biases..."
 if [ -n "$WANDB_API_KEY" ]; then
     wandb login $WANDB_API_KEY
-    echo "W&B configured."
+    echo "W&B configured. Project: $WANDB_PROJECT"
+    WANDB_ARGS="--wandb-project $WANDB_PROJECT"
 else
     echo "No WANDB_API_KEY found. Training will proceed without W&B logging."
     echo "Set WANDB_API_KEY environment variable to enable logging."
+    WANDB_ARGS="--no-wandb"
 fi
 
-# 5. Run training
+# 5. Build Hub arguments
+HUB_ARGS=""
+if [ -n "$HUB_MODEL_ID" ]; then
+    HUB_ARGS="--hub-model-id $HUB_MODEL_ID"
+    if [ "$HUB_PRIVATE" = "true" ]; then
+        HUB_ARGS="$HUB_ARGS --hub-private"
+    fi
+    echo "Will push to HuggingFace Hub: $HUB_MODEL_ID"
+else
+    HUB_ARGS="--no-push"
+    echo "Not pushing to HuggingFace Hub (set HUB_MODEL_ID to enable)"
+fi
+
+# 6. Run training
+echo ""
 echo "[5/5] Starting training..."
 echo "This will take approximately 2-3 hours."
 echo ""
@@ -60,15 +118,23 @@ echo ""
 accelerate launch --config_file accelerate_config.yaml finetune_epistemic_stance.py \
     --data final_training_data_balanced.csv \
     --output ./epistemic_stance_model \
-    --epochs 3 \
-    --batch-size 2 \
-    --gradient-accumulation 8 \
-    --learning-rate 2e-5 \
-    ${WANDB_API_KEY:+--wandb-project epistemic-stance} \
-    ${WANDB_API_KEY:-"--no-wandb"}
+    --epochs $EPOCHS \
+    --batch-size $BATCH_SIZE \
+    --gradient-accumulation $GRADIENT_ACCUMULATION \
+    --learning-rate $LEARNING_RATE \
+    $WANDB_ARGS \
+    $HUB_ARGS
 
 echo ""
 echo "=============================================="
 echo "Training complete!"
-echo "Model saved to: ./epistemic_stance_model/final"
 echo "=============================================="
+echo ""
+echo "Model saved to: ./epistemic_stance_model/final"
+if [ -n "$HUB_MODEL_ID" ]; then
+    echo "Model pushed to: https://huggingface.co/$HUB_MODEL_ID"
+fi
+echo ""
+echo "To run inference:"
+echo "  python inference_epistemic_stance.py --model ./epistemic_stance_model/final --interactive"
+echo ""

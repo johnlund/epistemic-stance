@@ -47,17 +47,31 @@ echo ""
 # 1. Install dependencies
 echo "[1/5] Installing dependencies..."
 pip install --upgrade pip
+# Install all packages together with constraints so pip can resolve dependencies properly
 # Pin numpy to <1.25.0 for compatibility with system scipy
-pip install "numpy>=1.17.3,<1.25.0" --upgrade --force-reinstall
-# Reinstall transformers to fix any corruption
-pip install transformers --upgrade --force-reinstall
-pip install torch datasets accelerate pandas scikit-learn wandb huggingface_hub --upgrade
+# Pin huggingface_hub to <1.0 for compatibility with transformers 4.57.5
+pip install \
+    "numpy>=1.17.3,<1.25.0" \
+    "huggingface_hub<1.0,>=0.34.0" \
+    torch \
+    transformers \
+    datasets \
+    accelerate \
+    pandas \
+    scikit-learn \
+    wandb \
+    --upgrade
 # Using SDPA attention (built into PyTorch) instead of flash-attn to avoid compilation
 
 # 2. Login to Hugging Face (for gated model access and upload)
 echo "[2/5] Hugging Face login..."
 if [ -n "$HF_TOKEN" ]; then
-    huggingface-cli login --token $HF_TOKEN
+    # Try huggingface-cli first, fall back to python -m if not in PATH
+    if command -v huggingface-cli &> /dev/null; then
+        huggingface-cli login --token $HF_TOKEN
+    else
+        python3 -m huggingface_hub.cli.login --token $HF_TOKEN
+    fi
     echo "HuggingFace authenticated."
 else
     echo "WARNING: No HF_TOKEN found. You may not be able to access gated models."

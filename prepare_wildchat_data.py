@@ -14,8 +14,7 @@ Usage:
     python inference_silver_labels.py predict \
         --model ./classifier_output_final/best_model \
         --data wildchat_filtered.csv \
-        --output wildchat_silver_labels.csv \
-        --threshold 0.85
+        --output wildchat_silver_labels.csv
 
 Author: Claude (Anthropic)
 Project: Epistemic Stance Analysis Pipeline
@@ -382,8 +381,8 @@ def combine_with_reddit_silver(
     reddit_silver_path: str,
     wildchat_silver_path: str,
     output_path: str,
-    wildchat_threshold: float = 0.85,
-    wildchat_multiplist_threshold: float = 0.70,
+    wildchat_threshold: float = 0.80,
+    wildchat_multiplist_threshold: float = 0.60,
 ):
     """
     Combine Reddit and WildChat silver labels into unified training set.
@@ -467,7 +466,6 @@ def main():
     combine_parser.add_argument('--reddit', type=str, required=True, help='Reddit silver labels CSV')
     combine_parser.add_argument('--wildchat', type=str, required=True, help='WildChat silver labels CSV')
     combine_parser.add_argument('--output', type=str, required=True, help='Output CSV path')
-    combine_parser.add_argument('--threshold', type=float, default=0.85, help='Confidence threshold')
     
     args = parser.parse_args()
     
@@ -485,8 +483,7 @@ def main():
         combine_with_reddit_silver(
             reddit_silver_path=args.reddit,
             wildchat_silver_path=args.wildchat,
-            output_path=args.output,
-            wildchat_threshold=args.threshold,
+            output_path=args.output
         )
     
     else:

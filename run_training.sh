@@ -48,8 +48,8 @@ echo ""
 echo "[1/5] Installing dependencies..."
 pip install --upgrade pip
 pip install torch transformers datasets accelerate pandas scikit-learn wandb huggingface_hub --upgrade
-# flash-attn must be installed after torch, with --no-build-isolation
-pip install flash-attn --no-build-isolation
+# flash-attn must be installed after torch - use prebuilt wheel for speed
+pip install flash-attn --no-build-isolation --find-links https://github.com/Dao-AILab/flash-attention/releases
 
 # 2. Login to Hugging Face (for gated model access and upload)
 echo "[2/5] Hugging Face login..."

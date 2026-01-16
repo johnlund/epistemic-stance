@@ -1,225 +1,266 @@
 #!/usr/bin/env python3
 """
-Inference script for the fine-tuned epistemic stance classifier.
+Inference script for the fine-tuned Mistral-Small-24B-Instruct-2501 epistemic stance classifier.
 
 Usage:
-    # Single text
-    python inference_epistemic_stance.py --model ./epistemic_stance_model/final \
-        --text "I think everyone should form their own opinion on this matter."
-    
-    # Batch inference on CSV
-    python inference_epistemic_stance.py --model ./epistemic_stance_model/final \
-        --input responses.csv --output classified.csv
+    # Single text classification
+    python inference_epistemic_stance.py --model ./epistemic_stance_model/final --text "Your text here"
     
     # Interactive mode
     python inference_epistemic_stance.py --model ./epistemic_stance_model/final --interactive
+    
+    # Batch classification from CSV
+    python inference_epistemic_stance.py --model ./epistemic_stance_model/final --input data.csv --output results.csv
 """
 
 import argparse
 import json
-import logging
-from pathlib import Path
+import sys
+from typing import Optional
 
-import pandas as pd
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from tqdm import tqdm
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
 
-# System prompt (must match training)
-SYSTEM_PROMPT = """You are an expert classifier trained to identify epistemic stances in text based on Kuhn's developmental epistemology framework. Analyze the given text and classify it into one of three categories:
+SYSTEM_PROMPT = """You are an expert classifier trained to identify epistemic stances in text based on Kuhn's developmental epistemology framework.
 
-**absolutist**: Knowledge presented as certain facts. Claims made without qualification or hedging. Counterarguments dismissed or ignored. High confidence in singular correct answers.
+## The Three Epistemic Stances
 
-**multiplist**: Knowledge treated as subjective opinion. Multiple perspectives acknowledged but not evaluated against each other. Non-committal stance. "Everyone has their own truth" or "it depends on the person" framing without further analysis.
+**ABSOLUTIST**: Knowledge is CERTAIN. Claims presented as objective truth without qualification. Dismisses opposing views. Uses directive language like "You need to...", "Obviously...", "The only option is..."
 
-**evaluativist**: Knowledge as reasoned judgment. Evidence weighed and evaluated. Counterarguments engaged substantively. Qualified language showing awareness of complexity. Conclusions drawn while acknowledging uncertainty.
+**MULTIPLIST**: Knowledge is SUBJECTIVE. All opinions equally valid. Avoids evaluation. Uses phrases like "Only you can know", "Everyone's entitled to their view", "It depends on the person"
 
-Respond with a JSON object containing:
-- "stance": one of "absolutist", "multiplist", or "evaluativist"
-- "confidence": one of "high", "medium", or "low"
-"""
+**EVALUATIVIST**: Knowledge is UNCERTAIN but some claims have MORE MERIT. Weighs evidence, engages counterarguments, shows calibrated confidence. Uses "The evidence suggests...", "On balance...", "Based on what you've described..."
+
+## Key Distinctions
+- Absolutist vs Evaluativist: Do they JUSTIFY with reasoning, or assert as fact?
+- Multiplist vs Evaluativist: Do they WEIGH perspectives, or treat all as equal?
+
+Respond with JSON: {"stance": "absolutist|multiplist|evaluativist", "confidence": "high|medium|low"}"""
 
 
 class EpistemicStanceClassifier:
-    """Wrapper for the fine-tuned epistemic stance classifier."""
+    """Classifier for epistemic stances using fine-tuned Mistral Small 3."""
     
-    def __init__(self, model_path: str, device: str = "auto"):
-        logger.info(f"Loading model from {model_path}")
+    def __init__(self, model_path: str, device: Optional[str] = None):
+        """
+        Initialize the classifier.
         
-        self.tokenizer = AutoTokenizer.from_pretrained(
+        Args:
+            model_path: Path to the fine-tuned model
+            device: Device to use ('cuda', 'cpu', or None for auto)
+        """
+        self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
+        
+        print(f"Loading model from {model_path}...")
+        self.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+        
+        # Set pad token if not set
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+        
+        self.model = AutoModelForCausalLM.from_pretrained(
             model_path,
-            trust_remote_code=True
+            torch_dtype=torch.bfloat16,
+            trust_remote_code=True,
+            device_map="auto" if self.device == 'cuda' else None,
         )
         
-        if device == "auto":
-            self.model = AutoModelForCausalLM.from_pretrained(
-                model_path,
-                torch_dtype=torch.bfloat16,
-                trust_remote_code=True,
-                device_map="auto"
-            )
-        else:
-            self.model = AutoModelForCausalLM.from_pretrained(
-                model_path,
-                torch_dtype=torch.bfloat16,
-                trust_remote_code=True
-            ).to(device)
+        if self.device == 'cpu':
+            self.model = self.model.to(self.device)
         
         self.model.eval()
-        logger.info("Model loaded successfully")
+        print(f"Model loaded on {self.device}")
     
-    def classify(self, text: str, max_new_tokens: int = 50) -> dict:
-        """Classify a single text and return stance + confidence."""
+    def classify(
+        self,
+        text: str,
+        temperature: float = 0.15,
+        max_new_tokens: int = 50,
+    ) -> dict:
+        """
+        Classify the epistemic stance of a text.
         
+        Args:
+            text: The text to classify
+            temperature: Sampling temperature (low recommended for Mistral Small 3)
+            max_new_tokens: Maximum tokens to generate
+            
+        Returns:
+            dict with 'stance', 'confidence', and 'raw_response'
+        """
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": f"Classify the epistemic stance in the following text:\n\n{text}"}
+            {"role": "user", "content": f"Classify the epistemic stance:\n\n{text}"}
         ]
         
-        # Apply chat template
         prompt = self.tokenizer.apply_chat_template(
             messages,
             tokenize=False,
             add_generation_prompt=True
         )
         
-        # Tokenize
         inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
         
-        # Generate
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
                 max_new_tokens=max_new_tokens,
-                do_sample=False,  # Greedy for classification
-                pad_token_id=self.tokenizer.eos_token_id
+                temperature=temperature,
+                do_sample=True,
+                pad_token_id=self.tokenizer.pad_token_id,
             )
         
-        # Decode only the new tokens
         response = self.tokenizer.decode(
             outputs[0][inputs['input_ids'].shape[1]:],
             skip_special_tokens=True
         ).strip()
         
-        # Parse JSON response
+        # Parse the response
         try:
             result = json.loads(response)
             return {
                 "stance": result.get("stance", "unknown"),
                 "confidence": result.get("confidence", "unknown"),
-                "raw_response": response
+                "raw_response": response,
             }
         except json.JSONDecodeError:
-            # Try to extract stance from malformed response
-            response_lower = response.lower()
+            # Fallback: try to extract stance from text
             stance = "unknown"
-            for s in ["absolutist", "multiplist", "evaluativist"]:
-                if s in response_lower:
-                    stance = s
+            for label in ["absolutist", "multiplist", "evaluativist"]:
+                if label in response.lower():
+                    stance = label
                     break
-            
             return {
                 "stance": stance,
                 "confidence": "low",
                 "raw_response": response,
-                "parse_error": True
             }
-    
-    def classify_batch(
-        self,
-        texts: list[str],
-        batch_size: int = 8,
-        show_progress: bool = True
-    ) -> list[dict]:
-        """Classify multiple texts."""
-        
-        results = []
-        iterator = tqdm(texts, desc="Classifying") if show_progress else texts
-        
-        for text in iterator:
-            result = self.classify(text)
-            results.append(result)
-        
-        return results
 
 
-def main():
-    parser = argparse.ArgumentParser(description='Run epistemic stance classification')
-    parser.add_argument('--model', '-m', required=True, help='Path to fine-tuned model')
-    parser.add_argument('--text', '-t', help='Single text to classify')
-    parser.add_argument('--input', '-i', help='Input CSV with texts to classify')
-    parser.add_argument('--output', '-o', help='Output CSV path')
-    parser.add_argument('--text-column', default='text', help='Column name for text in CSV')
-    parser.add_argument('--interactive', action='store_true', help='Interactive mode')
-    parser.add_argument('--device', default='auto', help='Device to use (auto, cuda, cpu)')
+def interactive_mode(classifier: EpistemicStanceClassifier):
+    """Run interactive classification mode."""
+    print("\n" + "="*60)
+    print("Epistemic Stance Classifier - Interactive Mode")
+    print("="*60)
+    print("\nEnter text to classify (or 'quit' to exit):")
+    print("-"*60)
     
-    args = parser.parse_args()
-    
-    # Load model
-    classifier = EpistemicStanceClassifier(args.model, device=args.device)
-    
-    if args.text:
-        # Single text classification
-        result = classifier.classify(args.text)
-        print(f"\nStance: {result['stance']}")
-        print(f"Confidence: {result['confidence']}")
-        if result.get('parse_error'):
-            print(f"Warning: Response parsing failed")
-            print(f"Raw response: {result['raw_response']}")
-    
-    elif args.input:
-        # Batch classification
-        if not args.output:
-            args.output = args.input.replace('.csv', '_classified.csv')
-        
-        logger.info(f"Loading data from {args.input}")
-        df = pd.read_csv(args.input)
-        
-        texts = df[args.text_column].tolist()
-        results = classifier.classify_batch(texts)
-        
-        # Add results to dataframe
-        df['predicted_stance'] = [r['stance'] for r in results]
-        df['prediction_confidence'] = [r['confidence'] for r in results]
-        df['parse_error'] = [r.get('parse_error', False) for r in results]
-        
-        # Save
-        df.to_csv(args.output, index=False)
-        logger.info(f"Results saved to {args.output}")
-        
-        # Print summary
-        print("\n" + "=" * 50)
-        print("Classification Summary")
-        print("=" * 50)
-        print(df['predicted_stance'].value_counts())
-        print(f"\nParse errors: {df['parse_error'].sum()}")
-    
-    elif args.interactive:
-        # Interactive mode
-        print("\nEpistemic Stance Classifier - Interactive Mode")
-        print("Type 'quit' to exit\n")
-        
-        while True:
-            text = input("Enter text to classify:\n> ").strip()
+    while True:
+        try:
+            print("\n> ", end="")
+            text = input().strip()
             
-            if text.lower() == 'quit':
+            if text.lower() in ['quit', 'exit', 'q']:
+                print("Goodbye!")
                 break
             
             if not text:
+                print("Please enter some text to classify.")
                 continue
             
             result = classifier.classify(text)
-            print(f"\n  Stance: {result['stance']}")
-            print(f"  Confidence: {result['confidence']}\n")
+            
+            print(f"\nResult:")
+            print(f"  Stance: {result['stance'].upper()}")
+            print(f"  Confidence: {result['confidence']}")
+            
+        except KeyboardInterrupt:
+            print("\nGoodbye!")
+            break
+        except Exception as e:
+            print(f"Error: {e}")
+
+
+def batch_classify(
+    classifier: EpistemicStanceClassifier,
+    input_path: str,
+    output_path: str,
+    text_column: str = "text",
+):
+    """Classify texts from a CSV file."""
+    import pandas as pd
     
-    else:
-        parser.print_help()
+    print(f"Loading data from {input_path}...")
+    df = pd.read_csv(input_path)
+    
+    if text_column not in df.columns:
+        raise ValueError(f"Column '{text_column}' not found in CSV")
+    
+    results = []
+    total = len(df)
+    
+    print(f"Classifying {total} texts...")
+    for idx, row in df.iterrows():
+        text = row[text_column]
+        result = classifier.classify(text)
+        results.append({
+            "text": text,
+            "predicted_stance": result["stance"],
+            "confidence": result["confidence"],
+        })
+        
+        if (idx + 1) % 10 == 0:
+            print(f"  Processed {idx + 1}/{total}")
+    
+    # Create output DataFrame
+    output_df = pd.DataFrame(results)
+    
+    # Add original columns
+    for col in df.columns:
+        if col != text_column:
+            output_df[col] = df[col].values
+    
+    output_df.to_csv(output_path, index=False)
+    print(f"Results saved to {output_path}")
+    
+    # Print summary
+    print("\nClassification Summary:")
+    print(output_df['predicted_stance'].value_counts())
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Epistemic Stance Classifier")
+    parser.add_argument('--model', '-m', required=True, help='Path to the fine-tuned model')
+    parser.add_argument('--text', '-t', help='Single text to classify')
+    parser.add_argument('--interactive', '-i', action='store_true', help='Interactive mode')
+    parser.add_argument('--input', help='Input CSV file for batch classification')
+    parser.add_argument('--output', help='Output CSV file for batch results')
+    parser.add_argument('--text-column', default='text', help='Column name for text in CSV')
+    parser.add_argument('--temperature', type=float, default=0.15, help='Sampling temperature')
+    parser.add_argument('--device', choices=['cuda', 'cpu'], help='Device to use')
+    
+    args = parser.parse_args()
+    
+    # Validate arguments
+    if not any([args.text, args.interactive, args.input]):
+        parser.error("Must specify --text, --interactive, or --input")
+    
+    if args.input and not args.output:
+        parser.error("--output required when using --input")
+    
+    # Initialize classifier
+    classifier = EpistemicStanceClassifier(args.model, device=args.device)
+    
+    # Run appropriate mode
+    if args.text:
+        result = classifier.classify(args.text, temperature=args.temperature)
+        print(f"\nText: {args.text[:100]}...")
+        print(f"\nResult:")
+        print(f"  Stance: {result['stance'].upper()}")
+        print(f"  Confidence: {result['confidence']}")
+        print(f"  Raw response: {result['raw_response']}")
+    
+    elif args.interactive:
+        interactive_mode(classifier)
+    
+    elif args.input:
+        batch_classify(
+            classifier,
+            args.input,
+            args.output,
+            text_column=args.text_column,
+        )
 
 
 if __name__ == '__main__':

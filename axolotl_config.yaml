@@ -1,13 +1,24 @@
-# Axolotl config for fine-tuning Magistral-Small-2507 on epistemic stance classification
+# Axolotl config for fine-tuning Mistral-Small-24B-Instruct-2501 on epistemic stance classification
 # Hardware: 4x H100 80GB SXM5 (320 GB VRAM total) - Full fine-tune
 #
-# Magistral-Small-2507 is the TEXT-ONLY version (v1.1) built on Mistral Small 3.1
-# It does NOT have a vision encoder, so no multimodal config needed.
+# Mistral-Small-24B-Instruct-2501 (Mistral Small 3):
+# - 24B parameters, text-only model
+# - Uses Tekken V7 tokenizer (131k vocab)
+# - 32k context window
+# - ~55GB VRAM in bf16
+# - Apache 2.0 license (no gated access)
 
-base_model: mistralai/Magistral-Small-2507
+base_model: mistralai/Mistral-Small-24B-Instruct-2501
 model_type: AutoModelForCausalLM
 tokenizer_type: AutoTokenizer
-tokenizer_use_mistral_common: true
+
+# Liger kernel for memory optimization (recommended for Mistral training)
+plugins:
+  - axolotl.integrations.liger.LigerPlugin
+liger_rope: true
+liger_rms_norm: true
+liger_swiglu: true
+liger_fused_linear_cross_entropy: true
 
 # Full fine-tune in bfloat16 (4x H100 has enough VRAM)
 load_in_8bit: false
@@ -17,23 +28,26 @@ fp16: false
 tf32: true
 
 # Dataset configuration
+# Using tokenizer_default to use the model's built-in Tekken V7 chat template
 datasets:
   - path: final_training_data_formatted.jsonl
     type: chat_template
-    chat_template: chatml
+    chat_template: tokenizer_default
     field_messages: conversations
-    message_property_mappings:
-      role: from
-      content: value
+    message_field_role: from
+    message_field_content: value
+    roles_to_train: ["gpt"]
+    train_on_eos: turn
 
 # Dataset processing
 dataset_prepared_path: ./prepared_data
 val_set_size: 0.1
 shuffle_merged_datasets: true
 
-# Sequence length
+# Sequence length - Mistral Small 3 supports 32k, but 2048 is enough for our classification task
 sequence_len: 2048
 sample_packing: true
+eval_sample_packing: false
 pad_to_sequence_len: true
 
 # Training hyperparameters
@@ -43,7 +57,7 @@ gradient_accumulation_steps: 16
 learning_rate: 2e-5
 lr_scheduler: cosine
 warmup_ratio: 0.1
-weight_decay: 0.01
+weight_decay: 0.0
 max_grad_norm: 1.0
 
 # Optimizer
@@ -51,7 +65,13 @@ optimizer: adamw_torch_fused
 
 # Memory optimization
 gradient_checkpointing: true
-flash_attention: false  # Use SDPA instead
+gradient_checkpointing_kwargs:
+  use_reentrant: false
+flash_attention: true
+
+# Training settings
+train_on_inputs: false
+group_by_length: false
 
 # No LoRA - full fine-tune (4x H100 has enough VRAM)
 adapter:
@@ -64,13 +84,13 @@ logging_steps: 10
 eval_steps: 100
 save_steps: 100
 save_total_limit: 3
+saves_per_epoch: 2
 
 # Output
 output_dir: ./epistemic_stance_model
 
 # Evaluation
 eval_strategy: steps
-eval_sample_packing: false
 
 # Hub upload (optional)
 hub_model_id: johnclund/epistemic-stance-analyzer
@@ -82,5 +102,6 @@ wandb_run_id:
 wandb_watch:
 wandb_log_model:
 
-# Note: special_tokens override is not supported with mistral-common tokenizer
-# The tokenizer handles padding automatically
+# Special tokens - let the tokenizer handle padding
+special_tokens:
+  pad_token: "<pad>"

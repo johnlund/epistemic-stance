@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """
-Fine-tune Magistral-Small-2509 (24B) for epistemic stance classification.
+Fine-tune Mistral-Small-24B-Instruct-2501 (Mistral Small 3) for epistemic stance classification.
 
-Uses Mistral3ForConditionalGeneration as specified in the HuggingFace model card.
+This model uses:
+- AutoModelForCausalLM (standard causal LM, NOT Mistral3ForConditionalGeneration)
+- Tekken V7 tokenizer with 131k vocabulary
+- 32k context window
+- Apache 2.0 license (no gated access)
 
 Usage:
     accelerate launch --config_file accelerate_config.yaml finetune_epistemic_stance.py \
@@ -23,9 +27,8 @@ import pandas as pd
 import torch
 from datasets import Dataset
 from sklearn.model_selection import train_test_split
-from huggingface_hub import hf_hub_download
 from transformers import (
-    Mistral3ForConditionalGeneration,  # Correct model class for Magistral
+    AutoModelForCausalLM,  # Standard model class for Mistral Small 3
     AutoTokenizer,
     TrainingArguments,
     Trainer,
@@ -43,14 +46,14 @@ logger = logging.getLogger(__name__)
 # CONFIGURATION
 # =============================================================================
 
-MODEL_ID = "mistralai/Magistral-Small-2509"
-MAX_LENGTH = 2048
+MODEL_ID = "mistralai/Mistral-Small-24B-Instruct-2501"
+MAX_LENGTH = 2048  # 32k supported, but 2048 is enough for classification
 
 # Label mapping
 LABEL_TO_ID = {"absolutist": 0, "multiplist": 1, "evaluativist": 2}
 ID_TO_LABEL = {v: k for k, v in LABEL_TO_ID.items()}
 
-# Our classification system prompt (simplified, without thinking tokens)
+# Our classification system prompt
 CLASSIFICATION_SYSTEM_PROMPT = """You are an expert classifier trained to identify epistemic stances in text based on Kuhn's developmental epistemology framework.
 
 ## The Three Epistemic Stances
@@ -131,9 +134,9 @@ def load_and_prepare_data(data_path: str, test_size: float = 0.1, seed: int = 42
 
 
 def tokenize_example(example: dict, tokenizer) -> dict:
-    """Tokenize a single example."""
+    """Tokenize a single example using the tokenizer's chat template."""
     
-    # Apply chat template
+    # Apply chat template - Mistral Small 3 uses Tekken V7 template
     text = tokenizer.apply_chat_template(
         example['messages'],
         tokenize=False,
@@ -152,12 +155,10 @@ def tokenize_example(example: dict, tokenizer) -> dict:
     tokenized['labels'] = tokenized['input_ids'].copy()
     
     # Mask everything except the assistant response
-    # Find the assistant response start
     input_ids = tokenized['input_ids']
     labels = tokenized['labels']
     
-    # Try to find where assistant response starts
-    # The tokenizer should handle this, but we'll mask the prompt portion
+    # Find where assistant response starts and mask the prompt portion
     assistant_response = json.dumps({"stance": example['label'], "confidence": "high"})
     response_tokens = tokenizer.encode(assistant_response, add_special_tokens=False)
     
@@ -222,33 +223,40 @@ def evaluate_model(model, tokenizer, eval_dataset, num_samples: int = 100):
     indices = random.sample(range(len(eval_dataset)), min(num_samples, len(eval_dataset)))
     
     predictions, references = [], []
-    model.eval()
     
+    model.eval()
     with torch.no_grad():
         for idx in indices:
             example = eval_dataset[idx]
-            ref_label = example.get('label', 'unknown')
-            references.append(ref_label)
+            references.append(example['label'])
             
+            # Build prompt without assistant response
             messages = [
                 {"role": "system", "content": CLASSIFICATION_SYSTEM_PROMPT},
-                {"role": "user", "content": f"Classify the epistemic stance:\n\n{example.get('text_original', '')}"}
+                {"role": "user", "content": f"Classify the epistemic stance:\n\n{example['text_original']}"}
             ]
             
-            prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+            prompt = tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True
+            )
+            
             inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
             
             outputs = model.generate(
                 **inputs,
                 max_new_tokens=50,
-                do_sample=False,
-                pad_token_id=tokenizer.eos_token_id
+                temperature=0.15,  # Low temp recommended for Mistral Small 3
+                do_sample=True,
+                pad_token_id=tokenizer.pad_token_id,
             )
             
-            response = tokenizer.decode(outputs[0][inputs['input_ids'].shape[1]:], skip_special_tokens=True).strip()
+            response = tokenizer.decode(outputs[0][inputs['input_ids'].shape[1]:], skip_special_tokens=True)
             
+            # Parse the response
             try:
-                result = json.loads(response)
+                result = json.loads(response.strip())
                 pred_label = result.get('stance', 'unknown')
             except json.JSONDecodeError:
                 pred_label = 'unknown'
@@ -310,15 +318,16 @@ def main():
     if args.no_wandb:
         os.environ['WANDB_DISABLED'] = 'true'
     
-    # Load tokenizer (with mistral tokenizer type as per docs)
+    # Load tokenizer
+    # Mistral Small 3 uses Tekken V7 tokenizer with built-in chat template
     logger.info(f"Loading tokenizer from {MODEL_ID}")
     tokenizer = AutoTokenizer.from_pretrained(
         MODEL_ID,
-        tokenizer_type="mistral",
         trust_remote_code=True,
         padding_side='right'
     )
     
+    # Set pad token if not set
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
         tokenizer.pad_token_id = tokenizer.eos_token_id
@@ -352,13 +361,15 @@ def main():
         desc="Tokenizing eval"
     )
     
-    # Load model (using correct class as per HuggingFace docs)
+    # Load model
+    # Mistral-Small-24B-Instruct-2501 uses standard AutoModelForCausalLM
     logger.info(f"Loading model from {MODEL_ID}")
-    model = Mistral3ForConditionalGeneration.from_pretrained(
+    model = AutoModelForCausalLM.from_pretrained(
         MODEL_ID,
         torch_dtype=torch.bfloat16,
         trust_remote_code=True,
         device_map="auto",
+        attn_implementation="flash_attention_2",  # Use Flash Attention 2 if available
     )
     
     model.gradient_checkpointing_enable()

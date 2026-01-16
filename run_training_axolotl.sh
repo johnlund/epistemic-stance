@@ -1,10 +1,14 @@
 #!/bin/bash
-# Fine-tune Magistral-Small-2507 using Axolotl (officially recommended by Mistral)
+# Fine-tune Mistral-Small-24B-Instruct-2501 using Axolotl
 # Hardware: 4x H100 80GB SXM5 (320 GB VRAM) - Full fine-tune
 # Estimated time: ~2 hours
 # Estimated cost: ~$25 ($12.36/hr)
 #
-# Magistral-Small-2507 is the TEXT-ONLY version (v1.1) - no vision encoder!
+# Mistral-Small-24B-Instruct-2501 (Mistral Small 3):
+# - 24B parameters, text-only
+# - Tekken V7 tokenizer (131k vocab)
+# - 32k context window
+# - Apache 2.0 license (no gated access required)
 
 set -e
 
@@ -18,7 +22,7 @@ EPOCHS="${EPOCHS:-3}"
 
 echo "=============================================="
 echo "Epistemic Stance Classifier - Axolotl Training"
-echo "Model: Magistral-Small-2507 (24B, text-only)"
+echo "Model: Mistral-Small-24B-Instruct-2501 (24B)"
 echo "Hardware: 4x H100 80GB SXM5 (Full fine-tune)"
 echo "=============================================="
 
@@ -47,14 +51,18 @@ pip install torch --index-url https://download.pytorch.org/whl/cu124
 # Install Axolotl with all dependencies
 pip install axolotl[deepspeed]
 
+# Install Liger kernel for memory optimization (recommended for Mistral)
+pip install liger-kernel
+
 # Install additional requirements
-pip install pandas wandb
+pip install pandas wandb mistral_common
 
 # Verify installation
 python -c "import axolotl; print(f'Axolotl version: {axolotl.__version__}')"
+python -c "import liger_kernel; print('Liger kernel installed successfully')"
 
 # =============================================================================
-# 3. HUGGINGFACE LOGIN
+# 3. HUGGINGFACE LOGIN (Optional - Apache 2.0 license, no gating)
 # =============================================================================
 echo "[3/5] HuggingFace authentication..."
 
@@ -62,13 +70,13 @@ if [ -n "$HF_TOKEN" ]; then
     python -c "from huggingface_hub import login; login(token='$HF_TOKEN')"
     echo "✓ HuggingFace authenticated"
 else
-    echo "⚠ No HF_TOKEN found. Set it to access gated models."
-    exit 1
+    echo "⚠ No HF_TOKEN found. This is optional for Mistral-Small-24B-Instruct-2501"
+    echo "  (Apache 2.0 license - no gated access required)"
 fi
 
 echo ""
-echo "Make sure you've accepted the model license at:"
-echo "https://huggingface.co/mistralai/Magistral-Small-2507"
+echo "Model: mistralai/Mistral-Small-24B-Instruct-2501"
+echo "License: Apache 2.0 (open access)"
 echo ""
 
 # =============================================================================
@@ -88,7 +96,7 @@ fi
 # Create deepspeed config directory if needed
 mkdir -p deepspeed_configs
 
-# Copy deepspeed config if not present
+# Create DeepSpeed ZeRO-2 config (optimal for 4x H100 full fine-tune)
 if [ ! -f deepspeed_configs/zero2.json ]; then
     cat > deepspeed_configs/zero2.json << 'DSEOF'
 {
@@ -136,9 +144,10 @@ echo ""
 echo "=============================================="
 echo "Training Configuration:"
 echo "  Epochs: $EPOCHS"
-echo "  Model: Magistral-Small-2507 (24B, text-only)"
+echo "  Model: Mistral-Small-24B-Instruct-2501 (24B)"
 echo "  Method: Full fine-tune with DeepSpeed ZeRO-2"
 echo "  Hardware: 4x H100 80GB (320GB total)"
+echo "  Optimizations: Liger kernel, Flash Attention"
 echo "=============================================="
 echo ""
 echo "This will take approximately 2 hours."

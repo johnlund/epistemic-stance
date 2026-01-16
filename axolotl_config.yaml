@@ -17,7 +17,7 @@ plugins:
   - axolotl.integrations.liger.LigerPlugin
 liger_rope: true
 liger_rms_norm: true
-liger_swiglu: true
+liger_glu_activation: true  # Updated from deprecated liger_swiglu
 liger_fused_linear_cross_entropy: true
 
 # Full fine-tune in bfloat16 (4x H100 has enough VRAM)
@@ -34,8 +34,10 @@ datasets:
     type: chat_template
     chat_template: tokenizer_default
     field_messages: conversations
-    message_field_role: from
-    message_field_content: value
+    # Updated from deprecated message_field_role/message_field_content
+    message_property_mappings:
+      role: from
+      content: value
     roles_to_train: ["gpt"]
     train_on_eos: turn
 
@@ -82,9 +84,10 @@ deepspeed: deepspeed_configs/zero2.json
 # Logging
 logging_steps: 10
 eval_steps: 100
-save_steps: 100
-save_total_limit: 3
+
+# Saving - use saves_per_epoch (save_steps is mutually exclusive)
 saves_per_epoch: 2
+save_total_limit: 3
 
 # Output
 output_dir: ./epistemic_stance_model

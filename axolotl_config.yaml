@@ -69,7 +69,8 @@ optimizer: adamw_torch_fused
 gradient_checkpointing: true
 gradient_checkpointing_kwargs:
   use_reentrant: false
-flash_attention: true
+flash_attention: false
+sdp_attention: true
 
 # Training settings
 train_on_inputs: false

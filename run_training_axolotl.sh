@@ -52,7 +52,7 @@ pip install axolotl[deepspeed]
 # This is REQUIRED for Magistral-Small-2509 per Axolotl docs
 # See: https://docs.axolotl.ai/docs/multimodal.html#sec-magistral-small-2509
 echo "Installing mistral-common with vision support..."
-pip install 'mistral-common[opencv]==1.8.5'
+pip install 'mistral-common[opencv]==1.8.3'
 
 # Install additional requirements
 pip install pandas wandb

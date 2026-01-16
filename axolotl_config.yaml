@@ -1,23 +1,25 @@
 # Axolotl config for fine-tuning Magistral-Small-2509 on epistemic stance classification
 # Hardware: 4x H100 80GB SXM5 (320 GB VRAM total) - Full fine-tune
 #
-# NOTE: Magistral-Small-2509 is a MULTIMODAL model (vision + text) even though
-# we're training with text-only data. We must configure it as multimodal.
+# IMPORTANT: Magistral-Small-2509 is a MULTIMODAL model (version 1.2 added vision)
+# Even for text-only training, we must configure it as multimodal per Axolotl docs.
+#
+# PREREQUISITE: Install vision dependencies:
+#   pip install 'mistral-common[opencv]==1.8.5'
 
 base_model: mistralai/Magistral-Small-2509
-model_type: AutoModelForCausalLM
-tokenizer_type: AutoTokenizer
+
+# DO NOT specify model_type or tokenizer_type for Magistral - let Axolotl auto-detect
+# The official example only specifies base_model
 tokenizer_use_mistral_common: true
 
-# CRITICAL: Magistral-Small-2509 is multimodal - must use AutoProcessor
+# REQUIRED for multimodal models (per Axolotl docs)
 processor_type: AutoProcessor
-
-# Multimodal-specific settings (required even for text-only training)
 skip_prepare_dataset: true
 remove_unused_columns: false
-sample_packing: false  # Not supported with multimodal models
+sample_packing: false  # Not supported with multimodal
 
-# Full fine-tune in bfloat16 (4x H100 has enough VRAM)
+# Full fine-tune in bfloat16
 load_in_8bit: false
 load_in_4bit: false
 bf16: auto
@@ -58,9 +60,9 @@ optimizer: adamw_torch_fused
 
 # Memory optimization
 gradient_checkpointing: true
-flash_attention: false  # Use SDPA instead
+flash_attention: false
 
-# No LoRA - full fine-tune (4x H100 has enough VRAM)
+# No LoRA - full fine-tune
 adapter:
 
 # DeepSpeed configuration for multi-GPU
@@ -88,6 +90,3 @@ wandb_project: epistemic-stance
 wandb_run_id:
 wandb_watch:
 wandb_log_model:
-
-# Note: special_tokens override is not supported with mistral-common tokenizer
-# The tokenizer handles padding automatically

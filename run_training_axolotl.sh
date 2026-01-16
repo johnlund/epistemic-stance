@@ -3,6 +3,9 @@
 # Hardware: 4x H100 80GB SXM5 (320 GB VRAM) - Full fine-tune
 # Estimated time: ~2 hours
 # Estimated cost: ~$25 ($12.36/hr)
+#
+# IMPORTANT: Magistral-Small-2509 is a multimodal model (v1.2 added vision)
+# This script installs the required vision dependencies per Axolotl docs.
 
 set -e
 
@@ -25,30 +28,38 @@ echo "=============================================="
 # =============================================================================
 echo "[1/5] Setting up environment..."
 
-# Create and activate virtual environment
-# rm -rf ./axolotl_venv
-python3 -m venv ./axolotl_venv # --clear
+# Create and activate virtual environment if it doesn't exist
+if [ ! -d "./axolotl_venv" ]; then
+    python3 -m venv ./axolotl_venv
+fi
 source ./axolotl_venv/bin/activate
 
 # Upgrade pip
 pip install --upgrade pip wheel setuptools
 
 # =============================================================================
-# 2. INSTALL AXOLOTL
+# 2. INSTALL AXOLOTL AND DEPENDENCIES
 # =============================================================================
 echo "[2/5] Installing Axolotl and dependencies..."
 
-# Install PyTorch first
+# Install PyTorch first (if not already installed)
 pip install torch --index-url https://download.pytorch.org/whl/cu124
 
 # Install Axolotl with all dependencies
 pip install axolotl[deepspeed]
+
+# CRITICAL: Install mistral-common with vision (opencv) support
+# This is REQUIRED for Magistral-Small-2509 per Axolotl docs
+# See: https://docs.axolotl.ai/docs/multimodal.html#sec-magistral-small-2509
+echo "Installing mistral-common with vision support..."
+pip install 'mistral-common[opencv]==1.8.5'
 
 # Install additional requirements
 pip install pandas wandb
 
 # Verify installation
 python -c "import axolotl; print(f'Axolotl version: {axolotl.__version__}')"
+python -c "import mistral_common; print(f'mistral-common version: {mistral_common.__version__}')"
 
 # =============================================================================
 # 3. HUGGINGFACE LOGIN
@@ -73,9 +84,14 @@ echo ""
 # =============================================================================
 echo "[4/5] Preparing training data..."
 
-python prepare_data_for_axolotl.py \
-    --input final_training_data_balanced.csv \
-    --output final_training_data_formatted.jsonl
+# Only run data prep if the output doesn't exist
+if [ ! -f "final_training_data_formatted.jsonl" ]; then
+    python prepare_data_for_axolotl.py \
+        --input final_training_data_balanced.csv \
+        --output final_training_data_formatted.jsonl
+else
+    echo "Using existing final_training_data_formatted.jsonl"
+fi
 
 # Create deepspeed config directory if needed
 mkdir -p deepspeed_configs
@@ -116,18 +132,6 @@ fi
 # =============================================================================
 echo "[5/5] Starting training..."
 
-# Update config with optional settings
-if [ -n "$HUB_MODEL_ID" ]; then
-    echo "Will push to HuggingFace Hub: $HUB_MODEL_ID"
-    # Append hub settings to config
-    cat >> axolotl_config.yaml << EOF
-
-# Hub settings (dynamically added)
-hub_model_id: $HUB_MODEL_ID
-push_to_hub: true
-EOF
-fi
-
 if [ -n "$WANDB_API_KEY" ]; then
     wandb login $WANDB_API_KEY 2>/dev/null || true
     echo "✓ W&B configured"
@@ -140,13 +144,16 @@ echo ""
 echo "=============================================="
 echo "Training Configuration:"
 echo "  Epochs: $EPOCHS"
-echo "  Model: Magistral-Small-2509 (24B)"
+echo "  Model: Magistral-Small-2509 (24B) [Multimodal]"
 echo "  Method: Full fine-tune with DeepSpeed ZeRO-2"
 echo "  Hardware: 4x H100 80GB (320GB total)"
 echo "=============================================="
 echo ""
 echo "This will take approximately 2 hours."
 echo ""
+
+# Clear any cached prepared data that might have stale settings
+rm -rf ./prepared_data
 
 # Run Axolotl training with 4 GPUs
 accelerate launch --num_processes 4 --mixed_precision bf16 -m axolotl.cli.train axolotl_config.yaml

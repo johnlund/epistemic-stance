@@ -26,8 +26,8 @@ echo "=============================================="
 echo "[1/5] Setting up environment..."
 
 # Create and activate virtual environment
-rm -rf ./axolotl_venv
-# python3 -m venv ./axolotl_venv --clear
+# rm -rf ./axolotl_venv
+python3 -m venv ./axolotl_venv # --clear
 source ./axolotl_venv/bin/activate
 
 # Upgrade pip

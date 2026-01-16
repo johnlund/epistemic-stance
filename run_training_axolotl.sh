@@ -96,27 +96,31 @@ fi
 # Create deepspeed config directory if needed
 mkdir -p deepspeed_configs
 
-# Create DeepSpeed ZeRO-2 config (optimal for 4x H100 full fine-tune)
-if [ ! -f deepspeed_configs/zero2.json ]; then
-    cat > deepspeed_configs/zero2.json << 'DSEOF'
+# Create DeepSpeed ZeRO-3 config with CPU offloading (needed for 24B model on 4x H100)
+if [ ! -f deepspeed_configs/zero3.json ]; then
+    cat > deepspeed_configs/zero3.json << 'DSEOF'
 {
   "bf16": {
     "enabled": "auto"
   },
   "zero_optimization": {
-    "stage": 2,
+    "stage": 3,
     "offload_optimizer": {
-      "device": "none"
+      "device": "cpu",
+      "pin_memory": true
     },
     "offload_param": {
       "device": "none"
     },
-    "allgather_partitions": true,
-    "allgather_bucket_size": 5e8,
     "overlap_comm": true,
-    "reduce_scatter": true,
-    "reduce_bucket_size": 5e8,
-    "contiguous_gradients": true
+    "contiguous_gradients": true,
+    "sub_group_size": 1e9,
+    "reduce_bucket_size": "auto",
+    "stage3_prefetch_bucket_size": "auto",
+    "stage3_param_persistence_threshold": "auto",
+    "stage3_max_live_parameters": 1e9,
+    "stage3_max_reuse_distance": 1e9,
+    "stage3_gather_16bit_weights_on_model_save": true
   },
   "gradient_accumulation_steps": "auto",
   "gradient_clipping": "auto",
@@ -145,9 +149,9 @@ echo "=============================================="
 echo "Training Configuration:"
 echo "  Epochs: $EPOCHS"
 echo "  Model: Mistral-Small-24B-Instruct-2501 (24B)"
-echo "  Method: Full fine-tune with DeepSpeed ZeRO-2"
+echo "  Method: Full fine-tune with DeepSpeed ZeRO-3"
 echo "  Hardware: 4x H100 80GB (320GB total)"
-echo "  Optimizations: Liger kernel, Flash Attention"
+echo "  Optimizations: Liger kernel, SDPA, CPU optimizer offload"
 echo "=============================================="
 echo ""
 echo "This will take approximately 2 hours."

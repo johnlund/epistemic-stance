@@ -79,8 +79,8 @@ group_by_length: false
 # No LoRA - full fine-tune (4x H100 has enough VRAM)
 adapter:
 
-# DeepSpeed configuration for multi-GPU
-deepspeed: deepspeed_configs/zero2.json
+# DeepSpeed configuration for multi-GPU (ZeRO-3 for memory efficiency)
+deepspeed: deepspeed_configs/zero3.json
 
 # Logging
 logging_steps: 10

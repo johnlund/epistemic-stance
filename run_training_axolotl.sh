@@ -1,11 +1,10 @@
 #!/bin/bash
-# Fine-tune Magistral-Small-2509 using Axolotl (officially recommended by Mistral)
+# Fine-tune Magistral-Small-2507 using Axolotl (officially recommended by Mistral)
 # Hardware: 4x H100 80GB SXM5 (320 GB VRAM) - Full fine-tune
 # Estimated time: ~2 hours
 # Estimated cost: ~$25 ($12.36/hr)
 #
-# IMPORTANT: Magistral-Small-2509 is a multimodal model (v1.2 added vision)
-# This script installs the required vision dependencies per Axolotl docs.
+# Magistral-Small-2507 is the TEXT-ONLY version (v1.1) - no vision encoder!
 
 set -e
 
@@ -19,7 +18,7 @@ EPOCHS="${EPOCHS:-3}"
 
 echo "=============================================="
 echo "Epistemic Stance Classifier - Axolotl Training"
-echo "Model: Magistral-Small-2509 (24B)"
+echo "Model: Magistral-Small-2507 (24B, text-only)"
 echo "Hardware: 4x H100 80GB SXM5 (Full fine-tune)"
 echo "=============================================="
 
@@ -48,18 +47,11 @@ pip install torch --index-url https://download.pytorch.org/whl/cu124
 # Install Axolotl with all dependencies
 pip install axolotl[deepspeed]
 
-# CRITICAL: Install mistral-common with vision (opencv) support
-# This is REQUIRED for Magistral-Small-2509 per Axolotl docs
-# See: https://docs.axolotl.ai/docs/multimodal.html#sec-magistral-small-2509
-echo "Installing mistral-common with vision support..."
-pip install 'mistral-common[opencv]==1.8.3'
-
 # Install additional requirements
 pip install pandas wandb
 
 # Verify installation
 python -c "import axolotl; print(f'Axolotl version: {axolotl.__version__}')"
-python -c "import mistral_common; print(f'mistral-common version: {mistral_common.__version__}')"
 
 # =============================================================================
 # 3. HUGGINGFACE LOGIN
@@ -76,7 +68,7 @@ fi
 
 echo ""
 echo "Make sure you've accepted the model license at:"
-echo "https://huggingface.co/mistralai/Magistral-Small-2509"
+echo "https://huggingface.co/mistralai/Magistral-Small-2507"
 echo ""
 
 # =============================================================================
@@ -144,7 +136,7 @@ echo ""
 echo "=============================================="
 echo "Training Configuration:"
 echo "  Epochs: $EPOCHS"
-echo "  Model: Magistral-Small-2509 (24B) [Multimodal]"
+echo "  Model: Magistral-Small-2507 (24B, text-only)"
 echo "  Method: Full fine-tune with DeepSpeed ZeRO-2"
 echo "  Hardware: 4x H100 80GB (320GB total)"
 echo "=============================================="

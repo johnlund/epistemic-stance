@@ -1,8 +1,8 @@
 #!/bin/bash
 # Fine-tune Magistral-Small-2509 using Axolotl (officially recommended by Mistral)
-# Hardware: 2x B200 (360 GB VRAM)
-# Estimated time: ~2-3 hours
-# Estimated cost: ~$25-30
+# Hardware: 4x H100 80GB SXM5 (320 GB VRAM) - Full fine-tune
+# Estimated time: ~2 hours
+# Estimated cost: ~$25 ($12.36/hr)
 
 set -e
 
@@ -17,7 +17,7 @@ EPOCHS="${EPOCHS:-3}"
 echo "=============================================="
 echo "Epistemic Stance Classifier - Axolotl Training"
 echo "Model: Magistral-Small-2509 (24B)"
-echo "Hardware: 2x B200 (360 GB VRAM)"
+echo "Hardware: 4x H100 80GB SXM5 (Full fine-tune)"
 echo "=============================================="
 
 # =============================================================================
@@ -80,6 +80,37 @@ python prepare_data_for_axolotl.py \
 # Create deepspeed config directory if needed
 mkdir -p deepspeed_configs
 
+# Copy deepspeed config if not present
+if [ ! -f deepspeed_configs/zero2.json ]; then
+    cat > deepspeed_configs/zero2.json << 'DSEOF'
+{
+  "bf16": {
+    "enabled": "auto"
+  },
+  "zero_optimization": {
+    "stage": 2,
+    "offload_optimizer": {
+      "device": "none"
+    },
+    "offload_param": {
+      "device": "none"
+    },
+    "allgather_partitions": true,
+    "allgather_bucket_size": 5e8,
+    "overlap_comm": true,
+    "reduce_scatter": true,
+    "reduce_bucket_size": 5e8,
+    "contiguous_gradients": true
+  },
+  "gradient_accumulation_steps": "auto",
+  "gradient_clipping": "auto",
+  "train_batch_size": "auto",
+  "train_micro_batch_size_per_gpu": "auto",
+  "wall_clock_breakdown": false
+}
+DSEOF
+fi
+
 # =============================================================================
 # 5. UPDATE CONFIG AND RUN TRAINING
 # =============================================================================
@@ -109,15 +140,16 @@ echo ""
 echo "=============================================="
 echo "Training Configuration:"
 echo "  Epochs: $EPOCHS"
-echo "  Model: Magistral-Small-2509"
+echo "  Model: Magistral-Small-2509 (24B)"
 echo "  Method: Full fine-tune with DeepSpeed ZeRO-2"
+echo "  Hardware: 4x H100 80GB (320GB total)"
 echo "=============================================="
 echo ""
-echo "This will take approximately 2-3 hours."
+echo "This will take approximately 2 hours."
 echo ""
 
-# Run Axolotl training
-accelerate launch -m axolotl.cli.train axolotl_config.yaml
+# Run Axolotl training with 4 GPUs
+accelerate launch --num_processes 4 --mixed_precision bf16 -m axolotl.cli.train axolotl_config.yaml
 
 # =============================================================================
 # DONE

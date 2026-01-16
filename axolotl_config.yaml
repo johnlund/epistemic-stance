@@ -1,11 +1,13 @@
 # Axolotl config for fine-tuning Magistral-Small-2509 on epistemic stance classification
+# Hardware: 4x H100 80GB SXM5 (320 GB VRAM total) - Full fine-tune
 # Based on official Mistral recommendation: https://github.com/axolotl-ai-cloud/axolotl/tree/main/examples/magistral
 
 base_model: mistralai/Magistral-Small-2509
 model_type: AutoModelForCausalLM
 tokenizer_type: AutoTokenizer
+tokenizer_use_mistral_common: true
 
-# Load in bfloat16 for memory efficiency
+# Full fine-tune in bfloat16 (4x H100 has enough VRAM)
 load_in_8bit: false
 load_in_4bit: false
 bf16: auto
@@ -15,8 +17,11 @@ tf32: true
 # Dataset configuration
 datasets:
   - path: final_training_data_formatted.jsonl
-    type: sharegpt
-    conversation: chatml
+    type: chat_template
+    chat_template: chatml
+    field_messages: conversations
+    message_field_role: from
+    message_field_content: value
 
 # Dataset processing
 dataset_prepared_path: ./prepared_data
@@ -45,22 +50,7 @@ optimizer: adamw_torch_fused
 gradient_checkpointing: true
 flash_attention: false  # Use SDPA instead
 
-# LoRA configuration (comment out for full fine-tune)
-# adapter: lora
-# lora_r: 64
-# lora_alpha: 128
-# lora_dropout: 0.05
-# lora_target_modules:
-#   - q_proj
-#   - k_proj
-#   - v_proj
-#   - o_proj
-#   - gate_proj
-#   - up_proj
-#   - down_proj
-# lora_target_linear: true
-
-# For full fine-tune (no LoRA)
+# No LoRA - full fine-tune (4x H100 has enough VRAM)
 adapter:
 
 # DeepSpeed configuration for multi-GPU

@@ -7,6 +7,10 @@ model_type: AutoModelForCausalLM
 tokenizer_type: AutoTokenizer
 tokenizer_use_mistral_common: true
 
+# CRITICAL: Magistral-Small-2509 is text-only, not multimodal
+# Axolotl incorrectly detects it as multimodal due to Mistral3 architecture
+is_multimodal: false
+
 # Full fine-tune in bfloat16 (4x H100 has enough VRAM)
 load_in_8bit: false
 load_in_4bit: false

@@ -13,12 +13,13 @@ model_type: AutoModelForCausalLM
 tokenizer_type: AutoTokenizer
 
 # Liger kernel for memory optimization (recommended for Mistral training)
+# Note: liger_fused_linear_cross_entropy disabled due to incompatibility with ZeRO-3
 plugins:
   - axolotl.integrations.liger.LigerPlugin
 liger_rope: true
 liger_rms_norm: true
-liger_glu_activation: true  # Updated from deprecated liger_swiglu
-liger_fused_linear_cross_entropy: true
+liger_glu_activation: true
+liger_fused_linear_cross_entropy: false
 
 # Full fine-tune in bfloat16 (4x H100 has enough VRAM)
 load_in_8bit: false

@@ -1,7 +1,7 @@
 
 ## Epistemic Stance Classification and Evaluation Experimentation
 
-This repository presents my work in the [Apart Research Hackathon on AI Manipulation](https://apartresearch.com/sprints/ai-manipulation-hackathon-2026-01-09-to-2026-01-11). The goal of my work was to build an evaluation to measure the capability and tendency of LLMs to identify and adapt to the epistemic stance of the user they are interacting with. If this is the case, then this points towards promising further research in theory of mind, persuasion, and manipulation evaluations based in epistemological theories. In other words, if LLMs can and do use the epistemic stance (or other epistemic models) of the user they are interacting with, how and when do this do this, and does this make their attempts at persuasion more or less successful?
+This repository presents my work in the [Apart Research Hackathon on AI Manipulation](https://apartresearch.com/sprints/ai-manipulation-hackathon-2026-01-09-to-2026-01-11). The goal of my work was to build an evaluation to measure the capability and tendency of LLMs to identify and adapt to the epistemic stance of the user they are interacting with. If this is the case, then this points towards promising further research in theory of mind, persuasion, and manipulation evaluations based in epistemological theories. In other words, if LLMs can and do use the epistemic stance (or other epistemic models) of the user they are interacting with, how and when do they do this, and does this make their attempts at persuasion more or less successful?
 
 Rather than focusing on technical setup and use of this repository, think of this read me as an informal documentary story of my research journey that explains the process, experiments, and learnings gained from fine-tuning a model for epistemic stance detection.
 
@@ -30,9 +30,9 @@ The primary source for my understanding of epistemic stance is (Kuhn et al., 200
 
 In addition, I drew from other sources (Nussbaum et al. 2008; Hofer & Pintrich 1997; Wu et al. 2025) to understand more nuance in the these areas as regards to reasoning and belief.
 
-As mentioned above, epistemic stance is a gateway to broader understanding of the potential understanding and use of epistemology in LLMs, leading to further study in:
+As mentioned above, epistemic stance is a gateway to broader understanding of the potential capabilities and alignment of epistemology in LLMs, leading to further study in:
 
-- **Adaptive Persuasion**: Can and do LLMs adapt their dialogue to appeal to certain epistemic priors held by the humans using them?
+- **Adaptive Persuasion**: Can and do LLMs adapt their dialogue to appeal to certain reasoning/epistemic frameworks held by the humans using them?
 - **Theory of Mind**: How comprehensive is this understanding, and what models of epistemology are exhibited?
 - **Evaluation Gaps**: Are there currently gaps in evaluations and benchmarks that are missing more nuanced and strategic forms of manipulation and persuasion?
 
@@ -54,7 +54,7 @@ The subreddit that had the most multiplist examples was r/socialskills, which ma
 
 My approach to labeling the data was to create a relatively small set (~3000) of high-quality (gold) samples using Claude Sonnet, and then using those samples to train a Longformer classifier [model](https://huggingface.co/johnclund/epistemic-stance-classifier). This model would then classify about 25,000 (silver) samples that I would use to fine-tune a larger instruct model.
 
-In order to get enough multiplist samples in each of these datasets, I had to create a filtering system that selected for strings of words that showed examples of reasoning, and eventually had to select for specific strings of words that were more likely to get classified as multiplist. This of course biased the data coming out of the dataset, but I was running out of time and compute, so I had to move forward. It would be very useful to spend a good deal more time searching for high-quality datasets that exhibit each of the different stances (coming from different sources) in order to get a truly balanced dataset for training.
+I first filtered the dataset to eliminate low-quality comments with little to no epistemic/argumentative value. I decided to filter the comments on a fairly large set of words that are correlated with reasoning and argumentation. In order to get enough multiplist samples in each of these datasets, I had to add another set of filters that selected for strings of words that matched examples of multiplist reasoning. This, of course, biased the data coming out of the dataset, but I was running out of time and compute, so I had to move forward. It would be very useful to spend a good deal more time searching for high-quality datasets that exhibit each of the different stances (coming from different sources) in order to get a truly balanced dataset for training.
 
 In the end, I had to manually rebalance the dataset by weighting the multiplist examples more heavily in the training run. And I did end up including a ~3000 sample subset from WildChat selected for reasoning markers to ensure I had LLM-generated dialogue as well.
 
